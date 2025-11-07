@@ -28,7 +28,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows # Add these imports
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
-from pptx.dml.color import RGBColor, MSO_COLOR_TYPE
+from pptx.dml.color import RGBColor,MSO_COLOR_TYPE
 from pptx.enum.text import MSO_VERTICAL_ANCHOR
 from pptx.util import Inches
 from io import BytesIO
