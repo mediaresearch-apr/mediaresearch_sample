@@ -1803,7 +1803,9 @@ News search: All Articles: entity mentioned at least once in the article"""
                     run.font.bold = True
         #           run.font.bold = True
                     run.font.name = 'Helvetica'
-                    run.font.color.rgb = RGBColor(255, 255, 255)  # White color
+                    color = run.font.color
+                    color.color_type = MSO_COLOR_TYPE.RGB
+                    color.rgb = RGBColor(255, 255, 255)
                     paragraph.alignment = PP_ALIGN.LEFT
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
             # Add title slide after the first slide
