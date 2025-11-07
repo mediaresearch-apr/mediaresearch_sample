@@ -33,8 +33,7 @@ from pptx.enum.text import MSO_VERTICAL_ANCHOR
 from pptx.util import Inches
 from io import BytesIO
 from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
-from docx import Document
-from docx.shared import RGBColor
+
 import io, base64
 
 
@@ -1466,14 +1465,21 @@ if date_selected and industry_provided :# File Upload Section
             df_topjc1 = topjc_1.reset_index(drop=True)
             df_topjc2 = topjc_2.reset_index(drop=True)
             # df_topjc3 = topjc_3.reset_index(drop=True)
-    
-            # Extract publication name and count for the top 3
-            topjc_1_name = df_topjc1.iloc[0]["Journalist"]
-            topjc_1_count = df_topjc1.iloc[0]['Total Unique Articles']
-    
-            topjc_2_name = df_topjc2.iloc[0]["Journalist"]
-            topjc_2_count = df_topjc2.iloc[0]['Total Unique Articles']
-    
+            # Initialize variables with default values
+            topjc_1_name = "N/A"
+            topjc_1_count = 0
+            topjc_2_name = "N/A"
+            topjc_2_count = 0
+
+            # Extract publication name and count for the top 1, if available
+            if not df_topjc1.empty:
+                topjc_1_name = df_topjc1.iloc[0]["Journalist"]
+                topjc_1_count = df_topjc1.iloc[0]['Total Unique Articles']
+
+            # Extract publication name and count for the top 2, if available
+            if not df_topjc2.empty:
+                topjc_2_name = df_topjc2.iloc[0]["Journalist"]
+                topjc_2_count = df_topjc2.iloc[0]['Total Unique Articles']
             
             # # Extract the top 3 journalits writing in comp and not on client and their counts
             # topjc_1 = Jour_Comp.iloc[0:1]  # First publication
@@ -1516,13 +1522,20 @@ if date_selected and industry_provided :# File Upload Section
             df_topjp1 = topjp_1.reset_index(drop=True)
             df_topjp2 = topjp_2.reset_index(drop=True)
             # df_topjc3 = topjc_3.reset_index(drop=True)
-    
-            # Extract publication name and count for the top 3
-            topjp_1_name = df_topjp1.iloc[0]["Publication Name"]
-            topjp_1_count = df_topjp1.iloc[0][client_column]
-    
-            topjp_2_name = df_topjp2.iloc[0]["Publication Name"]
-            topjp_2_count = df_topjp2.iloc[0][client_column]
+            try:
+                # Extract publication name and count for the top 3
+                topjp_1_name = df_topjp1.iloc[0]["Publication Name"] if not df_topjp1.empty else "N/A"
+                topjp_1_count = df_topjp1.iloc[0][client_column] if not df_topjp1.empty else 0
+
+                topjp_2_name = df_topjp2.iloc[0]["Publication Name"] if not df_topjp2.empty else "N/A"
+                topjp_2_count = df_topjp2.iloc[0][client_column] if not df_topjp2.empty else 0
+
+            except IndexError:
+                # Handle the case where the DataFrame is empty or index is out of bounds
+                topjp_1_name = "N/A"
+                topjp_1_count = 0
+                topjp_2_name = "N/A"
+                topjp_2_count = 0
 
             if len(Jour_Client)>=1:
                 journalist_client1 = Jour_Client.iloc[0]["Journalist"]
@@ -1803,8 +1816,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                     run.font.bold = True
         #           run.font.bold = True
                     run.font.name = 'Helvetica'
-                    font_color = run.font.color  # Get the color object first
-                    font_color.rgb = RGBColor(255, 255, 255)
+                    run.font.color.rgb = RGBColor(255, 255, 255)  # White color
                     paragraph.alignment = PP_ALIGN.LEFT
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
             # Add title slide after the first slide
@@ -2325,6 +2337,8 @@ News search: All Articles: entity mentioned at least once in the article"""
             # ------------------------------------------------------------------
             # === DOWNLOAD GROK PROMPTS (.docx) ===
             st.sidebar.write("## Download Grok Prompts (.docx)")
+            from docx import Document
+            from docx.shared import RGBColor
 
             if st.sidebar.button("Download Prompts"):
                 
