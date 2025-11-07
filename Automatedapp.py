@@ -1894,6 +1894,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                     run.font.bold = True
         #           run.font.bold = True
                     run.font.name = 'Helvetica'
+                    run.font.color.rgb = None
                     run.font.color.rgb = RGBColor(255, 255, 255)  # White color
                     paragraph.alignment = PP_ALIGN.LEFT
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
