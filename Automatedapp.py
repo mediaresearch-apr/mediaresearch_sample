@@ -1803,10 +1803,10 @@ News search: All Articles: entity mentioned at least once in the article"""
                     run.font.bold = True
         #           run.font.bold = True
                     run.font.name = 'Helvetica'
-                     rPr = run._r.get_or_add_rPr()
-                     solid_fill = rPr.get_or_add_solidFill()
-                     srgbClr = solid_fill.get_or_add_srgbClr()
-                     srgbClr.val = RGBColor(255, 255, 255).rgb
+                    rPr = run._r.get_or_add_rPr()
+                    solid_fill = rPr.get_or_add_solidFill()
+                    srgbClr = solid_fill.get_or_add_srgbClr()
+                    srgbClr.val = RGBColor(255, 255, 255).rgb
                     paragraph.alignment = PP_ALIGN.LEFT
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
             # Add title slide after the first slide
