@@ -1804,9 +1804,17 @@ News search: All Articles: entity mentioned at least once in the article"""
         #           run.font.bold = True
                     run.font.name = 'Helvetica'
                     rPr = run._r.get_or_add_rPr()
-                    solid_fill = rPr.get_or_add_solidFill()
-                    srgbClr = solid_fill.get_or_add_srgbClr()
-                    srgbClr.val = RGBColor(255, 255, 255).rgb
+                    solidFill = rPr.find(qn('a:solidFill'))
+                    if solidFill is None:
+                        solidFill = OxmlElement('a:solidFill')
+                        rPr.append(solidFill)
+            
+                    srgbClr = solidFill.find(qn('a:srgbClr'))
+                    if srgbClr is None:
+                        srgbClr = OxmlElement('a:srgbClr')
+                        solidFill.append(srgbClr)
+            
+                    srgbClr.set('val', RGBColor(255, 255, 255).rgb)
                     paragraph.alignment = PP_ALIGN.LEFT
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
             # Add title slide after the first slide
