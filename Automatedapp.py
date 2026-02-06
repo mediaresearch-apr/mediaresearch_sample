@@ -2770,8 +2770,8 @@ if uploaded_docx is not None:
                 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
                 
                 # ========================== CONFIGURATION ==========================
-                TEMPLATE_IMAGE = "New logo snip.png"
-                FIRST_SLIDE_IMAGE = "New Templete main slide.png"
+                TEMPLATE_IMAGE = "Template Image.png"
+                FIRST_SLIDE_IMAGE = "First slide.png"
                 DISCLAIMER_IMAGE = "Disclaimer.png"
                 
                 SLIDE_WIDTH = Inches(13.333)
@@ -3063,16 +3063,16 @@ if uploaded_docx is not None:
                         if is_comp:
                             p.font.bold = True
                             p.font.color.rgb = ORANGE
+                            p.space_before = Pt(20)  # Space BEFORE competitor header
+                            p.space_after = Pt(0)    # No space after - goes directly to content
                         elif is_head:
                             p.font.bold = True
-                        if is_head or is_comp:
-                            p.space_after = Pt(10 if is_comp else 8)
-                            p.space_before = Pt(0)
+                            p.space_before = Pt(12)  # Space BEFORE topic/bucket header
+                            p.space_after = Pt(0)    # No space after - goes directly to content
                         else:
-                            p.space_after = Pt(0)  # No extra space, just move to next line
-                            p.space_before = Pt(0)  # No extra space before either
-                        
-                        p.space_after = Pt(10 if is_comp else 6)
+                            # Normal points - no extra spacing
+                            p.space_before = Pt(0)
+                            p.space_after = Pt(0)
                         current_y_offset += line_h
                         i += 1
                 
