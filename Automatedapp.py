@@ -2774,7 +2774,7 @@ uploaded_docx = st.sidebar.file_uploader(
 )
 
 if uploaded_docx is not None:
-    if st.sidebar.button("GenerateReport"):
+    if st.sidebar.button("Generate Report"):
         with st.spinner("Generating PowerPoint presentation..."):
             try:
                 import io
