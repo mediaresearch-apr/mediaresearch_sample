@@ -2387,6 +2387,8 @@ News search: All Articles: entity mentioned at least once in the article"""
             from docx import Document
             from docx.shared import RGBColor, Pt
             from docx.enum.text import WD_ALIGN_PARAGRAPH
+            import io
+            import base64
 
             if st.sidebar.button("Download Prompts"):
                
@@ -2400,32 +2402,20 @@ News search: All Articles: entity mentioned at least once in the article"""
                 BLACK = RGBColor(0, 0, 0)
                 
                 def add_run(p, txt, color=BLACK, bold=False):
-                    """Add text with 'Note:' or 'Note :' automatically bolded"""
-                    import re
-                    
-                    # Check if text contains 'Note:' or 'Note :'
-                    if re.search(r'Note\s*:', txt):
-                        parts = re.split(r'(Note\s*:)', txt)
-                        for part in parts:
-                            if re.match(r'Note\s*:', part):
-                                # This is 'Note:' or 'Note :', make it bold
-                                r = p.add_run(part)
-                                r.font.color.rgb = color
-                                r.bold = True
-                            else:
-                                # Regular text
-                                r = p.add_run(part)
-                                r.font.color.rgb = color
-                                r.bold = bold
-                    else:
-                        # No 'Note:' found, use normal behavior
-                        r = p.add_run(txt)
-                        r.font.color.rgb = color
-                        r.bold = bold
-                    
+                    """Add text with color and optional bold"""
+                    r = p.add_run(txt)
+                    r.font.color.rgb = color
+                    r.bold = bold
                     return p
                 
                 doc = Document()
+                
+                # Short variables
+                s = start_date
+                e = end_date
+                c = client_name
+                comp = competitors_str
+                ind = industry
                 
                 # === COLOR LEGEND ===
                 p = doc.add_paragraph()
@@ -2436,16 +2426,82 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, "Industry name, ", INDUSTRY_COLOR, bold=True)
                 add_run(p, "Publication Name with limited mentions on Client, ", PUB_COLOR, bold=True)
                 add_run(p, "Journalist Name with limited mentions on Client", JOURNALIST_COLOR, bold=True)
-                doc.add_paragraph()
+
+                p = doc.add_paragraph()
+                p.add_run("I work in Media Research Team at a PR Company, I will be sharing the below Qualitative insights with the PR professionals. Please keep this in mind and provide insights accordingly.")         
                 
-                # Short variables
-                s = start_date
-                e = end_date
-                c = client_name
-                comp = competitors_str
-                ind = industry
-                pubs = publications_str
-                jour = journalists_str
+                # === REQUIREMENTS SECTION ===
+                p = doc.add_paragraph()
+                p.add_run("Satisfy the below requirements :").bold = True
+                
+                # Prompt 1,2 requirements
+                p = doc.add_paragraph()
+                p.add_run("Prompt 1 follow the below requirements").bold = True
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much elaborative as possible")
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("Max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner")
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative")
+                
+                # NOTE for prompt 3
+                p = doc.add_paragraph()
+                r = p.add_run("NOTE : ")
+                r.bold = True
+                p.add_run("Don't provide insight for prompt 3")
+                
+                # Prompt 4,5 requirements
+                p = doc.add_paragraph()
+                p.add_run("Prompt 4,5 follow the below requirements").bold = True
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("Please give the insights in tabular format, don't mention no. of articles anywhere) Give one elaborative paragraph before creating a table.")
+                
+                # Prompt 6,7 requirements
+                p = doc.add_paragraph()
+                p.add_run("Prompt 6,7 follow the below requirements").bold = True
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("Give five or more critiques pointwise (be elaborative as much as possible) with the critiques pointer headers highlighted (just have 2-3 elaborative pointers in each critiques). Give one paragraph elaborative description before giving the pointers for critiques.")
+                
+                # Prompt 9,10 requirements
+                p = doc.add_paragraph()
+                p.add_run("Prompt 9,10 follow the below requirements").bold = True
+                
+                p = doc.add_paragraph(style='List Bullet')
+                r = p.add_run("Give paragraph wise for each Publications/Journalist(along with publication name) mentioned here and highlight the Publication name/Journalist,please be very much elaborative don't be generic relate it with the news released by these publications/journalist on the ")
+                add_run(p, ind, INDUSTRY_COLOR)
+                p.add_run(" industry. (")
+                r = p.add_run("Note : ")
+                r.bold = True
+                p.add_run("Publications/Journalist(along with publication name) should be highlighted)")
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("Don't give me the number of news written by these publications/journalists  just the content that has been written on the ")
+                add_run(p, ind, INDUSTRY_COLOR)
+                p.add_run(" industry.")
+                
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run("Additionally, follow the same requirements given for Prompt 1 excluding the first point in it (i.e Please give topicwise/bucketwise paragraph with topic/bucket)")
+                
+                doc.add_paragraph()
+
+                p = doc.add_paragraph()
+                r = p.add_run("For Prompts 1-10 ")
+                r.bold = True
+                p.add_run("please note that : do not consider press release from the companys website or any social media platform")                # Add formatting instruction before prompts
+
+                p = doc.add_paragraph()
+                p.add_run("Before giving insight for each prompt mention the title like Conversations on Client company, Topicwise Conversations on Client company,… etc (and replace Client Company with ")
+                add_run(p, c, CLIENT_NAME_COLOR)
+                p.add_run(" and Industry with ")
+                add_run(p, ind, INDUSTRY_COLOR)
+                p.add_run(")  with formatting ### and topics/buckets with bold formatting **,please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
+                
+                doc.add_paragraph()
                 
                 # === PROMPT 1 ===
                 p = doc.add_paragraph()
@@ -2456,7 +2512,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, e, DATE_COLOR)
                 add_run(p, " for ")
                 add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, "? Please summarize as many topics as possible but do not consider press release from the companys website or any social media platform. Only summarize the articles from print and online news platforms. (Note : Please give topicwise paragraph with topic highlighted please be very much elaborative as possible and max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner (For eg  Don't give pointers like this:Downgraded amid weak financials.Negative returns in December. if you couldn't find much content, only then decrease the no. of points but let each point be elaborative ), in each topicwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative, if you don't find much content for 5-6 points decrease the no. of points but be elaborative and the insights should be always elaborative in the context like for eg don't give just a pointer like Global expansion plans discussed, also give what plans were discussed summarize the relevant article give it in a point. )")
+                add_run(p, "? Please summarize as many topics as possible but do not consider press release from the companys website or any social media platform. Only summarize the articles from print and online news platforms.")
                 
                 # === PROMPT 2 ===
                 p = doc.add_paragraph()
@@ -2467,7 +2523,10 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, e, DATE_COLOR)
                 add_run(p, " for ")
                 add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, ". Please summarize the news articles as per the following categories. I am giving you the buckets. Please arrange the news as per their content in the relevant buckets and summarize that news. Only summarize the news articles from print and online news platforms. The buckets are as follows: Financial Performance, Product and Services, Social Good (includes CSR, ESG, Philanthropy, Environment), Employee Engagement (includes hiring, resignation, layoffs, training, skilling, employee benefits, appraisals...), Business Strategy (include growth, mergers, future, market share...), Vision and Leadership (Interviews, interaction, thought leadership, authored articles...), Legal and Regulatory, Tech & innovation, Stock related (stock recommendations, stock movements). (Note : Please give bucketwise paragraph with topic highlighted please be very much elaborative as possible relating it with the news and max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner (For eg  Don't give pointers like this:Downgraded amid weak financials.Negative returns in December. if you couldn't find much content, only then decrease the no. of points but let each point be elaborative ), in each bucketwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each buckets and those should be elaborative, if you don't find much content for 5-6 points decrease the no. of points but be elaborative and the insightsshould be always elaborative in the context like for eg don't give just a pointer like Global expansion plans discussed, also give what plans were discussed summarize the relevant article give it in a point. )")
+                add_run(p, ". Please summarize the news articles as per the following categories. I am giving you the buckets. Please arrange the news as per their content in the relevant buckets and summarize that news. Only summarize the news articles from print and online news platforms. The buckets are as follows: Financial Performance, Product and Services, Social Good (includes CSR, ESG, Philanthropy, Environment), Employee Engagement (includes hiring, resignation, layoffs, training, skilling, employee benefits, appraisals...), Business Strategy (include growth, mergers, future, market share...), Vision and Leadership (Interviews, interaction, thought leadership, authored articles...), Legal and Regulatory, Tech & innovation, Stock related (stock recommendations, stock movements).( ")
+                r = p.add_run("Note : ")
+                r.bold = True
+                add_run(p, "Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much elaborative as possible. Max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner. In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative)")
                 
                 # === PROMPT 3 ===
                 p = doc.add_paragraph()
@@ -2478,43 +2537,27 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, e, DATE_COLOR)
                 add_run(p, " for ")
                 add_run(p, comp, COMPETITOR_COLOR)
-                add_run(p, "? Give Topicwise conversation entity wise, one after the other follow the bucket structure for each of the entities, want separate separate topic wise conversation for each entity. Please summarize the news articles as per the following categories. I am giving you the buckets. Please arrange the news as per their content in the relevant buckets and summarize that news. Only summarize the news articles from print and online news platforms. The buckets are as follows: Financial Performance, Product and Services, Social Good (includes CSR, ESG, Philanthropy, Environment), Employee Engagement (includes hiring, resignation, layoffs, training, skilling, employee benefits, appraisals...), Business Strategy (include growth, mergers, future, market share...), Vision and Leadership (Interviews, interaction, thought leadership, authored articles...), Legal and Regulatory, Tech & innovation, Stock related (stock recommendations, stock movements). (Note : Please give bucketwise paragraph with topic highlighted please be very much elaborative as possible relating it with the news and max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner (For eg  Don't give pointers like this:Downgraded amid weak financials.Negative returns in December. if you couldn't find much content, only then decrease the no. of points but let each point be elaborative ), in each topicwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each buckets and those should be elaborative, if you don't find much content for 5-6 points decrease the no. of points but be elaborative and the insightsshould be always elaborative in the context like for eg don't give just a pointer like Global expansion plans discussed, also give what plans were discussed summarize the relevant article give it in a point. ) Give it with the Header i.e Topicwise Conversation on Competitor Company with formatting ### and competitor name ")
+                add_run(p, "? Give Topicwise conversation entity wise, one after the other follow the bucket structure for each of the entities, want separate separate topic wise conversation for each entity. Please summarize the news articles as per the following categories. I am giving you the buckets. Please arrange the news as per their content in the relevant buckets and summarize that news. Only summarize the news articles from print and online news platforms. The buckets are as follows: Financial Performance, Product and Services, Social Good (includes CSR, ESG, Philanthropy, Environment), Employee Engagement (includes hiring, resignation, layoffs, training, skilling, employee benefits, appraisals...), Business Strategy (include growth, mergers, future, market share...), Vision and Leadership (Interviews, interaction, thought leadership, authored articles...), Legal and Regulatory, Tech & innovation, Stock related (stock recommendations, stock movements). (")
+                r = p.add_run("Note : ")
+                r.bold = True
+                add_run(p, "Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much elaborative as possible. Max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner. In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative) Give it with the Header i.e Topicwise Conversation on Competitor Company with formatting ### and competitor name ")
                 add_run(p, comp, COMPETITOR_COLOR)
-                add_run(p, "  with formatting ## and buckets with bold formatting **")
+                add_run(p, "  with formatting ## and buckets with bold formatting **, please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
                 
                 # === PROMPT 4 ===
                 p = doc.add_paragraph()
-                add_run(p, "4) Exclusive Conversation on Client Company ", bold=True)
-                add_run(p, "Could you Summarize the news articles from ")
-                add_run(p, s, DATE_COLOR)
-                add_run(p, " to ")
-                add_run(p, e, DATE_COLOR)
-                add_run(p, " for ")
-                add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, "? Please summarize as many topics as possible but do not consider press release from the companys website or any social media platform. Only summarize the articles with ")
-                add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, " mentioned in the Headline or the lead para or if ")
-                add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, " is mentioned atleast twice in the article from print and online news platforms. (Note : It's okay if the topics coincides with the insight of prompt 1 and 2 , but for this prompt the insights has to be exclusive i.e the articles with ")
-                add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, " mentioned in the Headline or the lead para or if ")
-                add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, " is mentioned atleast twice in the article from print and online news platforms.Please give topic wise paragraph and there should be more than 1 topic and each topic needs to be very much elaborative and relate it with the news with topic highlighted and max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner (For eg  Don't give pointers like this:Downgraded amid weak financials.Negative returns in December. if you couldn't find much content, only then decrease the no. of points but let each point be elaborative ), in each topicwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topics and those should be elaborative, if you don't find much content for 5-6 points decrease the no. of points but be elaborative, and the insights should be always elaborative in the context like for eg don't give just a pointer like Global expansion plans discussed, also give what plans were discussed summarize the relevant article give it in a point. )")
-                
-                # === PROMPT 5 ===
-                p = doc.add_paragraph()
-                add_run(p, "5) Month – on – Month Insights - ", bold=True)
+                add_run(p, "4) Month – on – Month Insights - ", bold=True)
                 add_run(p, "Give me month on month breakdown of news coverage for ")
                 add_run(p, c, CLIENT_NAME_COLOR)
                 add_run(p, " from ")
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, ". Give me details of events that have lead to a spike in the media coverage. (Note : Please give the insights in tabular format, don't mention no. of articles anywhere) Give one elaborative paragraph before creating a table.")
-                
-                # === PROMPT 6 ===
+                add_run(p, ". Give me details of events that have lead to a spike in the media coverage and if no news is present for a particular month mention that in the table itself. (")
+                r = p                
+                # === PROMPT 5 ===
                 p = doc.add_paragraph()
-                add_run(p, "6) Unique Conversations by Competitors - ", bold=True)
+                add_run(p, "5) Unique Conversations by Competitors - ", bold=True)
                 add_run(p, "What factors contributed to ")
                 add_run(p, comp, COMPETITOR_COLOR)
                 add_run(p, " higher media coverage in the ")
@@ -2527,61 +2570,67 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, c, CLIENT_NAME_COLOR)
                 add_run(p, "? Identify the unique conversation topics (topics where ")
                 add_run(p, c, CLIENT_NAME_COLOR)
-                add_run(p, " is not mentioned) where these companies were mentioned in the Headline or the lead para or if they were mentioned atleast twice in the article that have driven the higher media coverage.  (Note : give the insights in tabular format with Column name : Company, Unique Conversation Topics be elaborative relating it with the news, (for each row there should be just 1 company name all its unique conversation should be there beside it in the Unique Conversation Topics column) Give one elaborative paragraph before creating a table.")
+                add_run(p, " is not mentioned) where these companies were mentioned in the Headline or the lead para or if they were mentioned atleast twice in the article that have driven the higher media coverage.  (")
+                r = p.add_run("Note : ")
+                r.bold = True
+                add_run(p, "give the insights in tabular format with Column name : Company, Unique Conversation Topics be elaborative relating it with the news, (for each row there should be just 1 company name all its unique conversation should be there beside it in the Unique Conversation Topics column) Give one elaborative paragraph before creating a table.")
                 
-                # === PROMPT 7 ===
+                # === PROMPT 6 ===
                 p = doc.add_paragraph()
-                add_run(p, "7) Reputational Risks for Client - ", bold=True)
+                add_run(p, "6) Reputational Risks for Client - ", bold=True)
                 add_run(p, "What is the online news media saying about ")
                 add_run(p, c, CLIENT_NAME_COLOR)
                 add_run(p, " from ")
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, "? Give five or more critiques pointwise (be elaborative as much as possible) with the header highlighted. Give one paragraph elaborative description before giving the pointers for critiques.")
+                add_run(p, "? Give five or more critiques.")
                 
-                # === PROMPT 8 ===
+                # === PROMPT 7 ===
                 p = doc.add_paragraph()
-                add_run(p, "8) Reputational Risks for Industry - ", bold=True)
+                add_run(p, "7) Reputational Risks for Industry - ", bold=True)
                 add_run(p, "What is the online news media saying about ")
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry from ")
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, "? Give five or more critiques pointwise (be elaborative as much as possible) with the header highlighted. Give one paragraph elaborative description before giving the pointers for critiques.")
+                add_run(p, "? Give five or more critiques.")
                 
-                # === PROMPT 9 ===
+                # === PROMPT 8 ===
                 p = doc.add_paragraph()
-                add_run(p, "9) Industry Snapshot - ", bold=True)
+                add_run(p, "8) Industry Snapshot - ", bold=True)
                 add_run(p, "What is the online news media conversation in the ")
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry from ")
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, " and identify the companies who are a part of these conversations.(Note : give the insights in tabular format and be elaborative relating it with the news, give company wise insight for this, don't put more than 1 company in one row) Give one elaborative paragraph before creating a table. You can also consider companies who are not the competitors but are present online news media conversation in the ")
+                add_run(p, " and identify the companies who are a part of these conversations.(")
+                r = p.add_run("Note : ")
+                r.bold = True
+                add_run(p, "give the insights in tabular format and be elaborative relating it with the news, give company wise insight for this, don't put more than 1 company in one row) Give one elaborative paragraph before creating a table. You can also consider companies who are not the competitors but are present online news media conversation in the ")
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry.")
                 
-                # === PROMPT 10 ===
+                # === PROMPT 9 ===
                 p = doc.add_paragraph()
-                add_run(p, "10) Publications writing on Industry – ", bold=True)
+                add_run(p, "9) Publications writing on Industry – ", bold=True)
                 add_run(p, "Which Indian publications (min 3) have frequently written on  ")
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry from ")
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, " and what are the conversations about? Don't give me the number of news written by these publications just the content that has been written on the ")
+                add_run(p, " and what are the conversations about the ")
                 add_run(p, ind, INDUSTRY_COLOR)
-                add_run(p, " industry. (Note : Give paragraph wise for each Publications mentioned here and highlight the Publication name,please be very much elaborative don't be generic relate it with the news released by these publications on the ")
+                add_run(p, " industry AND which ")
                 add_run(p, ind, INDUSTRY_COLOR)
-                add_run(p, " industry and max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner, in each  paragraph and each and every point in the paragraph,content should be very much elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each Publication and those should be elaborative, if you don't find much content for 5-6 points decrease the no. of points but be elaborative")
+                add_run(p, " companies have been mentioned by them?")
                 
-                # === PROMPT 11 ===
+                # === PROMPT 10 ===
                 p = doc.add_paragraph()
-                add_run(p, "11) Journalist writing on Industry – ", bold=True)
+                add_run(p, "10) Journalist writing on Industry – ", bold=True)
                 add_run(p, "Which Indian journalists (min 3) have (mention their Publication name too) frequently written on ")
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry from ")
@@ -2592,35 +2641,31 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry AND which ")
                 add_run(p, ind, INDUSTRY_COLOR)
-                add_run(p, " companies have been mentioned by them? Don't give me the number of news written by these journalists just the content that has been written by them on the ")
-                add_run(p, ind, INDUSTRY_COLOR)
-                add_run(p, " industry. (Note: Give paragraph wise for each Journalists mentioned, very much elaborative don't be generic relate it with the news written by these Journalists on the ")
-                add_run(p, ind, INDUSTRY_COLOR)
-                add_run(p, " industry and max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner , in each  paragraph and each and every point in the paragraph,content should be very much elaborative as possible and there should be atleast 5-6 such points without losing relevant news under each Journalist Name and those should be elaborative, if you don't find much content for 5-6 points decrease the no. of points but be elaborative and the insights should be always elaborative")
+                add_run(p, " companies have been mentioned by them?")
                 
-                # === PROMPT 12 ===
+                # === PROMPT 11 ===
                 p = doc.add_paragraph()
-                add_run(p, "12) X Insights - ", bold=True)
+                add_run(p, "11) X Insights - ", bold=True)
                 add_run(p, "What is being said on Twitter X about ")
                 add_run(p, c, CLIENT_NAME_COLOR)
                 add_run(p, " between ")
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, "? (Note : Please be very much elaborative , should be majorly on users conversation around ")
+                add_run(p, "? (")
+                r = p.add_run("Note : ")
+                r.bold = True
+                add_run(p, "Please be very much elaborative , should be majorly on users conversation around ")
                 add_run(p, c, CLIENT_NAME_COLOR)
                 add_run(p, ", if possible highlight the user whose content about ")
                 add_run(p, c, CLIENT_NAME_COLOR)
                 add_run(p, " has larger influence among the twitter audience and give breakdown of Positive Discussions, Criticisms and Complaints, Neutral/Informational Mentions, and highlight it, please be as elaborative as possible)")
                 
-                # Add final instructions
-                doc.add_paragraph()
+                # Final NOTE
                 p = doc.add_paragraph()
-                add_run(p, "Please give insights for all of the above prompts one by one, take time but it should satisfy all the specified requirements for each prompt and before giving insight for each prompt mention the title like Conversations on Client company, Topicwise Conversations on Client company,… etc (and replace Client Company with ", bold=True)
-                add_run(p, c, CLIENT_NAME_COLOR, bold=True)
-                add_run(p, " and Industry with ", bold=True)
-                add_run(p, ind, INDUSTRY_COLOR, bold=True)
-                add_run(p, ")  (Note :Please don't mention no. of news article anywhere. Please follow requirements of each and every prompt and let your response be elaborative and relating it with the news article as this is an Qualitative Insights report) Don't give in ppt/word doc, just give text here (Imp Note that before giving insight for prompts 5 to 11 please give atleast one paragraph description and then continue with the insight for each of the particular prompts from 5 to 11 also Note that for all the insights for prompt especially for prompt 2 and 4 don't give one line insight in any topic/buckets, please be elaborative and relate it with the news and only form topic/buckets for which you can elaborative pointwise insights more than 1 line by summarizing the article at the same time imp news belonging to a topic or bucket should not be missed by any chance. For prompt 5,6,and 9 the insight should be in tabular format along with a paragraph description attached with each before the table. I note that when individual prompts are pasted the response is elaborative but when asked for response for all the prompts together the response is not very much elaborative PLEASE don't do that) Don't ever give one liner insight for a topic/bucket like below (as this is a Qualitative Insights Report) Stock Performance:Shares gained 7% on leisure foray.Surged 4.5% post-2030 visions.Positive on Q3 growth.Recommendations favorable on profits.Market sentiment tied to expansions. (in these cases for each point there would be definitely a news article which you are referring to, summarize that news article and elaborate each pointers and should exceed one line is the mandatory requirement to be satisfied by you) Don't provide insight for 3 for rest of the prompt give insights following the respective instruction.", bold=True)
+                r = p.add_run("NOTE : ")
+                r.bold = True
+                p.add_run("Don't provide insight for prompt 3")
                 
                 # === SAVE & DOWNLOAD ===
                 buffer = io.BytesIO()
@@ -2629,7 +2674,8 @@ News search: All Articles: entity mentioned at least once in the article"""
                 b64 = base64.b64encode(buffer.read()).decode()
                 href = f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="Grok_Prompts_{client_name}.docx">Download Grok Prompts (.docx)</a>'
                 st.sidebar.markdown(href, unsafe_allow_html=True)
-            
+    
+    # Continue with the rest of your prompts (2-12) as before...
             # Download selected DataFrame
             st.sidebar.write("## Download Selected DataFrame")
             dataframes_to_download = {
