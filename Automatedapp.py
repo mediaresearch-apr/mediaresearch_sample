@@ -2553,7 +2553,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, s, DATE_COLOR)
                 add_run(p, " to ")
                 add_run(p, e, DATE_COLOR)
-                add_run(p, ". Give me details of events that have lead to a spike in the media coverage and if no news is present for a particular month mention that in the table itself. (")
+                add_run(p, ". Give me details of events that have lead to a spike in the media coverage and if no news is present for a particular month mention that in the table itself.")
                 r = p                
                 # === PROMPT 5 ===
                 p = doc.add_paragraph()
