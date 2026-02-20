@@ -2499,7 +2499,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, c, CLIENT_NAME_COLOR)
                 p.add_run(" and Industry with ")
                 add_run(p, ind, INDUSTRY_COLOR)
-                p.add_run(")  with formatting ### and topics/buckets with bold formatting **,please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
+                p.add_run(")  with formatting ### and no bold formatting and topics/buckets with bold formatting **,please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
                 
                 doc.add_paragraph()
                 
@@ -2542,7 +2542,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 r.bold = True
                 add_run(p, "Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much elaborative as possible. Max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner. In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should be very much  elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative) Give it with the Header i.e Topicwise Conversation on Competitor Company with formatting ### and competitor name ")
                 add_run(p, comp, COMPETITOR_COLOR)
-                add_run(p, "  with formatting ## and buckets with bold formatting **, please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
+                add_run(p, "  with formatting ## with no bold formatting and buckets with bold formatting **, please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
                 
                 # === PROMPT 4 ===
                 p = doc.add_paragraph()
