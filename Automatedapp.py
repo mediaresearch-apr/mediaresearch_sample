@@ -801,16 +801,8 @@ def format_pretty_date(d):
 # Fixed min and max
 min_date = date(2023, 1, 1)
 max_date = date.today()
-max_date_for_nav = date(max_date.year, 12, 31)
-
-# ── Initialize session state for persisting valid dates ──────────
-if "valid_start" not in st.session_state:
-    st.session_state.valid_start = min_date
-if "valid_end" not in st.session_state:
-    st.session_state.valid_end = max_date
-
-# ── Use last known valid dates as default ────────────────────────
-default_range = (st.session_state.valid_start, st.session_state.valid_end)
+max_date_for_nav = date(max_date.year, 12, 31)  # Allow full year navigation
+default_range = (min_date, max_date)
 
 with st.sidebar:
     st.title("Enter Date Range here")
@@ -819,7 +811,7 @@ with st.sidebar:
         "Select date range (for screen readers)",
         value=default_range,
         min_value=min_date,
-        max_value=max_date_for_nav,
+        max_value=max_date_for_nav,  # ← Full year enabled in dropdown
         key="date_range",
         label_visibility="collapsed"
     )
@@ -829,37 +821,25 @@ with st.sidebar:
     if isinstance(date_range, tuple) and len(date_range) == 1:
         st.sidebar.info("Now select an **end date** on the calendar.")
 
+    elif date_range == default_range:
+        st.sidebar.write("**⚠️ Date not changed yet**")
+
     elif isinstance(date_range, tuple) and len(date_range) == 2:
         START_DATE, END_DATE = date_range
 
-        if END_DATE > max_date:
-            st.error(f"End date cannot be after today ({format_pretty_date(max_date)}). Please re-select end date.")
-            # ── Persist the valid START date, reset only END ─────
-            st.session_state.valid_start = START_DATE
-            st.session_state.valid_end = max_date  # reset end to safe value
+        if END_DATE > max_date:  # ← Manual validation against real today
+            st.error(f"End date cannot be after today ({format_pretty_date(max_date)}).")
 
         elif START_DATE > max_date:
-            st.error(f"Start date cannot be after today ({format_pretty_date(max_date)}). Please re-select start date.")
-            # ── Persist the valid END date, reset only START ─────
-            st.session_state.valid_end = END_DATE
-            st.session_state.valid_start = min_date  # reset start to safe value
+            st.error(f"Start date cannot be after today ({format_pretty_date(max_date)}).")
 
         elif START_DATE > END_DATE:
-            st.error("Start date cannot be after end date. Please re-select start date.")
-            # ── END was likely correct, preserve it ─────────────
-            st.session_state.valid_end = END_DATE
-            st.session_state.valid_start = min_date
+            st.error("Start date cannot be after end date.")
 
         elif START_DATE == END_DATE:
-            st.error("Start and end dates cannot be the same. Please change one date.")
-            # ── Preserve both, user just needs to tweak one ──────
-            st.session_state.valid_start = START_DATE
-            st.session_state.valid_end = END_DATE
+            st.error("Start and end dates cannot be the same.")
 
         else:
-            # ── Both valid — persist both ────────────────────────
-            st.session_state.valid_start = START_DATE
-            st.session_state.valid_end = END_DATE
             start_date = format_pretty_date(START_DATE)
             end_date = format_pretty_date(END_DATE)
             st.success(
