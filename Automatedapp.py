@@ -801,55 +801,23 @@ def format_pretty_date(d):
 # Fixed min and max
 min_date = date(2023, 1, 1)
 max_date = date.today()
-max_date_for_nav = date(max_date.year, 12, 31)  # Allow full year navigation
-default_range = (min_date, max_date)
 
 with st.sidebar:
     st.title("Enter Date Range here")
     st.markdown("**Select Date Range**")
-    date_range = st.date_input(
-        "Select date range (for screen readers)",
-        value=default_range,
-        min_value=min_date,
-        max_value=max_date_for_nav,  # ← Full year enabled in dropdown
-        key="date_range",
-        label_visibility="collapsed"
-    )
+
+    START_DATE = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date, key="start_date")
+    END_DATE = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date, key="end_date")
 
     date_selected = False
 
-    if isinstance(date_range, tuple) and len(date_range) == 1:
-        st.sidebar.info("Now select an **end date** on the calendar.")
-
-    elif date_range == default_range:
-        st.sidebar.write("**⚠️ Date not changed yet**")
-
-    elif isinstance(date_range, tuple) and len(date_range) == 2:
-        START_DATE, END_DATE = date_range
-
-        if END_DATE > max_date:  # ← Manual validation against real today
-            st.error(f"End date cannot be after today ({format_pretty_date(max_date)}).")
-
-        elif START_DATE > max_date:
-            st.error(f"Start date cannot be after today ({format_pretty_date(max_date)}).")
-
-        elif START_DATE > END_DATE:
-            st.error("Start date cannot be after end date.")
-
-        elif START_DATE == END_DATE:
-            st.error("Start and end dates cannot be the same.")
-
-        else:
-            start_date = format_pretty_date(START_DATE)
-            end_date = format_pretty_date(END_DATE)
-            st.success(
-                f"**Date range selected:**\n"
-                f"**Start:** {start_date} | **End:** {end_date}"
-            )
-            date_selected = True
-
+    if START_DATE > END_DATE:
+        st.error("Start date cannot be after end date.")
+    elif START_DATE == END_DATE:
+        st.error("Start and end dates cannot be the same.")
     else:
-        st.error("Please select both a start and end date.")
+        st.success(f"**Start:** {format_pretty_date(START_DATE)} | **End:** {format_pretty_date(END_DATE)}")
+        date_selected = True
 # Sidebar for file upload and download options
 if date_selected:
     st.sidebar.write("## Provide Client's Industry")
