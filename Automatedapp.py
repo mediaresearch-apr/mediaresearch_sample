@@ -1864,7 +1864,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP
         
             # Add Time Period text
-            time_period_text = f"""Time Period : {start_date} to {end_date}"""
+            time_period_text = f"""Time Period : {START_DATE} to {END_DATE}"""
             time_period_shape = slide.shapes.add_textbox(Inches(0.6), Inches(2), Inches(14), Inches(0.5))
             time_period_frame = time_period_shape.text_frame
             time_period_frame.text = time_period_text
