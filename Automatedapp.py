@@ -810,13 +810,16 @@ with st.sidebar:
     END_DATE = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date, key="end_date")
 
     date_selected = False
+    
 
     if START_DATE > END_DATE:
         st.error("Start date cannot be after end date.")
     elif START_DATE == END_DATE:
         st.error("Start and end dates cannot be the same.")
     else:
-        st.success(f"**Start:** {format_pretty_date(START_DATE)} | **End:** {format_pretty_date(END_DATE)}")
+        start_date = format_pretty_date(START_DATE)
+        end_date = format_pretty_date(END_DATE)
+        st.success(f"**Start:** {start_date} | **End:** {end_date}")
         date_selected = True
 # Sidebar for file upload and download options
 if date_selected:
@@ -1864,7 +1867,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP
         
             # Add Time Period text
-            time_period_text = f"""Time Period : {START_DATE} to {END_DATE}"""
+            time_period_text = f"""Time Period : {start_date} to {end date}"""
             time_period_shape = slide.shapes.add_textbox(Inches(0.6), Inches(2), Inches(14), Inches(0.5))
             time_period_frame = time_period_shape.text_frame
             time_period_frame.text = time_period_text
