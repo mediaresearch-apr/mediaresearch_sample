@@ -801,6 +801,7 @@ def format_pretty_date(d):
 # Fixed min and max
 min_date = date(2023, 1, 1)
 max_date = date.today()
+max_date_for_nav = date(max_date.year, 12, 31)  # Allow full year navigation
 default_range = (min_date, max_date)
 
 with st.sidebar:
@@ -810,27 +811,29 @@ with st.sidebar:
         "Select date range (for screen readers)",
         value=default_range,
         min_value=min_date,
-        max_value=max_date,
+        max_value=max_date_for_nav,  # ← Full year enabled in dropdown
         key="date_range",
         label_visibility="collapsed"
     )
 
     date_selected = False
 
-    # ── Still picking: only start date chosen so far ──────────────
     if isinstance(date_range, tuple) and len(date_range) == 1:
         st.sidebar.info("Now select an **end date** on the calendar.")
-        # date_selected stays False — wait for end date
 
-    # ── Nothing chosen yet / default unchanged ────────────────────
     elif date_range == default_range:
         st.sidebar.write("**⚠️ Date not changed yet**")
 
-    # ── Full range returned ───────────────────────────────────────
     elif isinstance(date_range, tuple) and len(date_range) == 2:
         START_DATE, END_DATE = date_range
 
-        if START_DATE > END_DATE:
+        if END_DATE > max_date:  # ← Manual validation against real today
+            st.error(f"End date cannot be after today ({format_pretty_date(max_date)}).")
+
+        elif START_DATE > max_date:
+            st.error(f"Start date cannot be after today ({format_pretty_date(max_date)}).")
+
+        elif START_DATE > END_DATE:
             st.error("Start date cannot be after end date.")
 
         elif START_DATE == END_DATE:
@@ -845,7 +848,6 @@ with st.sidebar:
             )
             date_selected = True
 
-    # ── Unexpected format fallback ────────────────────────────────
     else:
         st.error("Please select both a start and end date.")
 # Sidebar for file upload and download options
