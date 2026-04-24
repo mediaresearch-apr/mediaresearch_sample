@@ -46,6 +46,7 @@ def process_excel(file):
     output = BytesIO()
     excel_writer = pd.ExcelWriter(output, engine='xlsxwriter')
     all_dframes = []
+    sheet_results = {}
 
     # Iterate through each sheet in the uploaded file
     for sheet_name in pd.ExcelFile(file).sheet_names:
@@ -94,7 +95,13 @@ def process_excel(file):
                             'express news service', '(English)', 'HT Correspondent', 'DC Correspondent', 'TOI Business Desk',
                             'India Today Bureau', 'HT Education Desk', 'PNS', 'Our Editorial', 'Sports Reporter',
                             'TOI News Desk', 'Legal Correspondent', 'The Quint', 'District Correspondent', 'etpanache',
-                            'ens economic bureau', 'Team Herald', 'Equitymaster','Hans India','Motilal Oswal']
+                            'ens economic bureau', 'Team Herald', 'Equitymaster','Hans India','Motilal Oswal','Our Web Desk','TOI City Desk',
+                            'HT Sports Desk','Team Agenda','TOI World Desk','HT US Desk','Pioneer News Service','HT Syndication','Outlook News Desk',
+                            'Our Special Correspondent','TOI Tech Desk','ENS ECONOMIC BUREAU', 'N.E.W.S. Desk','BS Reporter','Team ET','Outlook Web Desk',
+                            'Entertainment Web Desk','Outlook Brand Studio','Trending Desk','Bureau Newss','Our Web Correspondent','PR Content',
+                            'BS REPORTER','Trending Desk','Team Lounge','Our Web Correspondent','Focus','HT Real Estate News','MintGenie Team',
+                            'Our Correspondent','LM US Desk','Global Sports Desk','HT Trending Desk','Guest Post','HT Infotainment Desk','TEAM ET','AA Edit',
+                            'Guest','Editorial','agencies','DC Web Desk']
         dframe['Journalists'] = dframe['Journalists'].replace(words_to_replace, 'Bureau News', regex=True)
         
         additional_replacements = ['@timesgroup.com', 'TNN']
@@ -103,6 +110,25 @@ def process_excel(file):
         # Fill NaN or spaces in 'Journalists' column
         dframe['Journalists'] = dframe['Journalists'].apply(lambda x: 'Bureau News' if pd.isna(x) or x.isspace() else x)
         dframe['Journalists'] = dframe['Journalists'].str.lstrip()
+        # Remove trailing city/brand keywords from Journalists column
+        keywords_to_strip = [
+            'Forbes India', 'Forbes', 'Mumbai', 'New Delhi', 'Delhi', 
+            'Hyderabad', 'Bengaluru', 'Bengalore', 'Chennai', 
+            '@timesofindia.com', 'Ahmedabad', 'Kolkata',' @timesofindia.com','Edited by','|',' |','Senior Journalist'
+        ]
+
+        # Build regex pattern to remove these words from anywhere in the string
+        pattern = r'\s*\b(' + '|'.join(map(re.escape, keywords_to_strip)) + r')\b\s*'
+        # First remove the slash between cities, then remove the keywords
+        dframe['Journalists'] = dframe['Journalists'].str.replace(
+            r'\s*(' + '|'.join(map(re.escape, keywords_to_strip)) + r')(\s*/\s*(' + '|'.join(map(re.escape, keywords_to_strip)) + r'))*', 
+            '', regex=True
+        ).str.strip()
+
+        # Also clean columns 4 and 5 if they exist
+        for col in [4, 5]:
+            if col in dframe.columns:
+                dframe[col] = dframe[col].str.replace(pattern, ' ', regex=True).str.strip()
 
         # Read additional data for merging
         data2 = pd.read_excel(r"FActiva Publications.xlsx")
@@ -111,7 +137,8 @@ def process_excel(file):
         merged = pd.merge(dframe, data2, how='left', left_on=['Source'], right_on=['Source'])
 
         # Save the merged data to Excel with the sheet name
-        merged.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+        #merged.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+        sheet_results[sheet_name] = merged
         
         # Append DataFrame to the list
         all_dframes.append(merged)
@@ -127,6 +154,9 @@ def process_excel(file):
 
     # Save the combined data to a new sheet
     combined_data.to_excel(excel_writer, sheet_name='Combined_All_Sheets', index=False)
+
+    for sheet_name, merged in sheet_results.items():
+        merged.to_excel(excel_writer, sheet_name=sheet_name, index=False)
     
     # Show the processed dataframe in the web app
     st.write(combined_data)
@@ -162,8 +192,44 @@ def extract_entity_name(file_path):
     entity_name = base_name.split('_or_')[0].replace("_", " ").split('-')[0].strip()
     return entity_name
 
+st.title('Online Excel File Merger & Entity Extractor (Kalki)')
+uploaded_files_kalki = st.file_uploader(
+    "Upload your Kalki Excel files",
+    accept_multiple_files=True,
+    type=['xlsx'],
+    key="kalki_uploader"          # unique key so it doesn't clash with Meltwater uploader
+)
+
+if uploaded_files_kalki:
+    kalki_df = pd.DataFrame()
+
+    for uploaded_file in uploaded_files_kalki:
+        df = pd.read_excel(uploaded_file)
+
+        # Entity = everything BEFORE the first underscore in the filename
+        # e.g.  "Reliance_Jan2024.xlsx"  →  "Reliance"
+        raw_name = uploaded_file.name          # "Reliance_Jan2024.xlsx"
+        base_name = raw_name.rsplit('.', 1)[0] # "Reliance_Jan2024"
+        entity_name = base_name.split('_')[0]  # "Reliance"
+
+        df['Entity'] = entity_name
+        kalki_df = pd.concat([kalki_df, df], ignore_index=True)
+
+    st.write(kalki_df)
+
+    # Download
+    output_kalki = BytesIO()
+    with pd.ExcelWriter(output_kalki, engine='xlsxwriter') as writer:
+        kalki_df.to_excel(writer, index=False)
+
+    st.download_button(
+        label="Download Merged Kalki Excel",
+        data=output_kalki.getvalue(),
+        file_name='merged_KalkiData_with_entity.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 # Web app title
-st.title('Online Excel File Merger & Entity Extractor')
+st.title('Online Excel File Merger & Entity Extractor (Meltwater)')
 
 # File uploader
 uploaded_files = st.file_uploader("Upload your Excel files", accept_multiple_files=True, type=['xlsx'])
@@ -200,6 +266,21 @@ if uploaded_files:
     
     # Reorder the DataFrame
     final_df = final_df[new_order]
+    # Read lookup file from backend
+    lookup_df = pd.read_excel('Meltwater Publications Vlookup.xlsx')
+    lookup_df = lookup_df[['Source', 'Publication Name', 'Publication Type']].drop_duplicates(subset='Source')
+
+    # Merge on Source column
+    final_df = final_df.merge(lookup_df, on='Source', how='left')
+
+    # Reposition columns right after 'Source'
+    cols = final_df.columns.tolist()
+    cols.remove('Publication Name')
+    cols.remove('Publication Type')
+    source_index = cols.index('Source')
+    cols.insert(source_index + 1, 'Publication Name')
+    cols.insert(source_index + 2, 'Publication Type')
+    final_df = final_df[cols]
     
     # Show the processed dataframe in the web app
     st.write(final_df)
@@ -269,23 +350,26 @@ def create_entity_sheets(data, writer):
                 cell.alignment = Alignment(wrap_text=True)
                 
         first_col_letter = get_column_letter(1)
-        max_length = max(entity_df.iloc[:, 0].astype(str).apply(len).max(),len(str(entity_df.columns[0])))
-        worksheet.column_dimensions[first_col_letter].width = max_length + 2
+        col0_max = entity_df.iloc[:, 0].astype(str).str.len().max()
+        col0_max = 0 if pd.isna(col0_max) else int(col0_max)
+        max_length = max(col0_max, len(str(entity_df.columns[0])))
+        worksheet.column_dimensions[first_col_letter].width = float(max_length + 2)
         
         second_col_letter = get_column_letter(2)
-        max_length = max(entity_df.iloc[:, 1].astype(str).apply(len).max(),len(str(entity_df.columns[1])))
-        worksheet.column_dimensions[second_col_letter].width = max_length + 2
+        col1_max = entity_df.iloc[:, 1].astype(str).str.len().max()
+        col1_max = 0 if pd.isna(col1_max) else int(col1_max)
+        max_length = max(col1_max, len(str(entity_df.columns[1])))
+        worksheet.column_dimensions[second_col_letter].width = float(max_length + 2)
 
 
 
         # Auto-adjust width for columns G onward
-        for idx, column in enumerate(entity_df.columns[6:], start=7):  # Excel F = 6
+        for idx, column in enumerate(entity_df.columns[6:], start=7):
             col_letter = get_column_letter(idx)
-            max_length = max(
-                entity_df[column].astype(str).apply(len).max(),
-                len(str(column))
-            )
-            worksheet.column_dimensions[col_letter].width = max_length + 2
+            col_max = entity_df[column].astype(str).str.len().max()
+            col_max = 0 if pd.isna(col_max) else int(col_max)
+            max_length = max(col_max, len(str(column)))
+            worksheet.column_dimensions[col_letter].width = float(max_length + 2)
 
         # Detect URLs and add hyperlink formatting
         url_columns = [col for col in entity_df.columns if isinstance(col, str) and 'url' in col.lower()]
@@ -394,7 +478,57 @@ def add_styling_to_worksheet(ws, df, start_row, comment, highlight_last_row=Fals
         for col_idx in range(1, len(df.columns) + 1):
             cell = ws.cell(row=last_data_row, column=col_idx)
             cell.font = Font(name="Gill Sans MT", bold=True)
-            
+def kalki_multiple_dfs(df_list, sheet_name, file_name, comments,
+                       entity_info, highlight_refs=None):
+    """
+    Kalki version of multiple_dfs().
+ 
+    Instead of checking global variable identity (df is Entity_SOV3),
+    the caller passes highlight_refs – a list of the exact DataFrame
+    objects whose last row should be bolded.  We compare with id() so
+    it works entirely within local scope, no globals needed.
+ 
+    file_name may be a BytesIO object (same as openpyxl wb.save()).
+    """
+    wb = Workbook()
+    ws = wb.active
+    current_row = 1
+    add_entity_info(ws, entity_info, current_row)
+    current_row += 6
+ 
+    ref_ids = set(id(r) for r in (highlight_refs or []))
+ 
+    for df, comment in zip(df_list, comments):
+        # Bold last row if caller flagged this df, OR if last row has "total"
+        highlight = (id(df) in ref_ids) or any(
+            "total" in str(val).lower() for val in df.iloc[-1]
+        )
+        add_styling_to_worksheet(ws, df, current_row, comment,
+                                 highlight_last_row=highlight)
+        current_row += len(df) + 4
+ 
+    wb.save(file_name)
+ 
+ 
+def kalki_multiple_dfs1(df_list, sheet_name, wb, comments,
+                        highlight_refs=None):
+    """
+    Kalki version of multiple_dfs1().
+ 
+    Same pattern: caller passes highlight_refs explicitly;
+    last-row bolding is checked with id(), not global variable names.
+    """
+    ws = wb.create_sheet(title=sheet_name)
+    current_row = 3
+    ref_ids = set(id(r) for r in (highlight_refs or []))
+ 
+    for df, comment in zip(df_list, comments):
+        highlight = (id(df) in ref_ids) or any(
+            "total" in str(val).lower() for val in df.iloc[-1]
+        )
+        add_styling_to_worksheet(ws, df, current_row, comment,
+                                 highlight_last_row=highlight)
+        current_row += len(df) + 4            
 def multiple_dfs(df_list, sheet_name, file_name, comments, entity_info):
     wb = Workbook()
     ws = wb.active
@@ -494,9 +628,11 @@ def add_table_to_slide(slide, df, title, textbox_text):
     text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT  # Left align the text
 
     # Add the image (footer logo) at the bottom of the slide
+    # Add the image (footer logo) at the bottom of the slide
     left = Inches(0.0)
     top = prs.slide_height - Inches(1)
     slide.shapes.add_picture( img_path,left, top, height=Inches(1))  # Adjust as needed
+
 
 
 
@@ -660,7 +796,7 @@ def add_image_to_slide1(slide, img_path4):
     top = Inches(1)
     width = Inches(14.5)  # Specify exact width
     height = Inches(5.5)  # Specify exact height
-    slide.shapes.add_picture(img_path5, left, top, width=width, height=height)
+    slide.shapes.add_picture(img_path4, left, top, width=width, height=height)
 
 # Generate bar chart
 def generate_bar_pchart(df):
@@ -812,14 +948,13 @@ with st.sidebar:
     end_date = format_pretty_date(END_DATE)
 
     date_selected = False
-    
 
     if START_DATE > END_DATE:
         st.error("Start date cannot be after end date.")
     elif START_DATE == END_DATE:
         st.error("Start and end dates cannot be the same.")
     else:
-        st.success(f"**Start:** {start_date} | **End:** {end_date}")
+        st.success(f"**Start:** {format_pretty_date(START_DATE)} | **End:** {format_pretty_date(END_DATE)}")
         date_selected = True
 # Sidebar for file upload and download options
 if date_selected:
@@ -836,7 +971,1124 @@ if date_selected:
     else:
         industry_provided = True
         industry = industry_input.strip()
+        
+if date_selected and industry_provided :
+    st.sidebar.write("## Upload Kalki Online file for tables")
+    kalki_online_file = st.sidebar.file_uploader(
+        "Upload Kalki Data File (Excel or CSV)",
+        type=["xlsx", "csv"],
+        key="kalki_online_tables_uploader",
+    )
+     
+    if kalki_online_file:
+        st.sidebar.write("Kalki File Uploaded Successfully!")
+        kalki_data_raw = load_data(kalki_online_file)
+     
+        if kalki_data_raw is not None:
+     
+            # ── 1. BASIC CLEAN-UP ────────────────────────────────────────
+            kdata = kalki_data_raw.copy()
+            kdata.drop(columns=kdata.columns[20:], inplace=True, errors="ignore")
+     
+            # Standardise journalist/author column → "Author"
+            for _src in ("Influencer", "Journalist"):
+                if _src in kdata.columns:
+                    kdata = kdata.rename(columns={_src: "Author"})
+                    break
+     
+            # De-duplicate using whichever key columns exist
+            for _subset in [
+                ["Date", "Entity", "Headline", "Publication Name"],
+                ["Date", "Entity", "Opening Text", "Publication Name"],
+                ["Date", "Entity", "Hit Sentence", "Publication Name"],
+            ]:
+                if set(_subset).issubset(kdata.columns):
+                    kdata.drop_duplicates(subset=_subset, keep="first",
+                                          inplace=True, ignore_index=True)
+     
+            kfinaldata = kdata.copy()
+            kfinaldata["Date"] = pd.to_datetime(kfinaldata["Date"]).dt.normalize()
+     
+            # ── 2. CLIENT / COMPETITOR DETECTION ─────────────────────────
+            k_client_col = next(
+                (e for e in kfinaldata["Entity"].unique() if e.startswith("Client-")),
+                None,
+            )
+     
+            # ── 3. SOV TABLE ──────────────────────────────────────────────
+            k_sov_raw = pd.crosstab(
+                kfinaldata["Entity"],
+                columns="News Count",
+                values=kfinaldata["Entity"],
+                aggfunc="count",
+            ).round(0)
+            k_sov_raw["% "] = (
+                (k_sov_raw["News Count"] / k_sov_raw["News Count"].sum()) * 100
+            ).round(0)
+            k_sov_raw = k_sov_raw.sort_values("News Count", ascending=False)
+            k_sov_raw.loc["Total"] = k_sov_raw.sum(numeric_only=True)
+     
+            k_Entity_SOV3 = pd.DataFrame(k_sov_raw.to_records()).round()
+            k_Entity_SOV3["News Count"] = k_Entity_SOV3["News Count"].astype(int)
+            k_Entity_SOV3["% "] = k_Entity_SOV3["% "].astype(int).astype(str) + "%"
+     
+            k_sov_order = k_Entity_SOV3["Entity"].tolist()
+            k_sov_order_no_client = [
+                e for e in k_sov_order
+                if not e.startswith("Client-") and e != "Total"
+            ]
+            k_client_coldt = k_client_col  # shorthand alias
+     
+            # ── 4. MONTH-ON-MONTH TABLE ───────────────────────────────────
+            k_sov_dt = pd.crosstab(
+                kfinaldata["Date"].dt.to_period("M"),
+                kfinaldata["Entity"],
+                margins=True,
+                margins_name="Total",
+            )
+            k_sov_dt1 = pd.DataFrame(k_sov_dt.to_records())
+            k_mom_cols = (
+                ["Date", k_client_coldt]
+                + [e for e in k_sov_order_no_client if e in k_sov_dt1.columns]
+                + (["Total"] if "Total" in k_sov_dt1.columns else [])
+            )
+            k_sov_dt11 = k_sov_dt1[k_mom_cols]
+     
+            # ── 5. PUBLICATION TABLE ──────────────────────────────────────
+            # Column name: "Publication"  |  Total articles (not unique)  |  No Client %
+            kfinaldata_non_exploded = kfinaldata.copy()
+     
+            # Rename "Publication Name" → "Publication" everywhere
+            if "Publication Name" in kfinaldata_non_exploded.columns:
+                kfinaldata_non_exploded = kfinaldata_non_exploded.rename(
+                    columns={"Publication Name": "Publication"}
+                )
+            if "Publication Name" in kfinaldata.columns:
+                kfinaldata = kfinaldata.rename(
+                    columns={"Publication Name": "Publication"}
+                )
+     
+            k_pub_cross = pd.crosstab(
+                kfinaldata_non_exploded["Publication"],
+                kfinaldata_non_exploded["Entity"],
+            ).reset_index()
+     
+            k_pub_total = (
+                kfinaldata_non_exploded["Publication"]
+                .value_counts()
+                .reset_index()
+            )
+            k_pub_total.columns = ["Publication", "Total"]
+     
+            k_pubs_table = k_pub_total.merge(k_pub_cross, on="Publication", how="left")
+            k_pub_cols = (
+                ["Publication", k_client_coldt]
+                + [e for e in k_sov_order_no_client if e in k_pubs_table.columns]
+                + ["Total"]
+            )
+            k_pubs_table = k_pubs_table[k_pub_cols]
+            k_pubs_table = k_pubs_table.sort_values("Total", ascending=False).round()
+            k_pubs_table.loc["Total"] = k_pubs_table.sum(numeric_only=True)
+            k_pubs_table["Publication"] = k_pubs_table["Publication"].fillna("Total")
+            _k_num_pub = k_pubs_table.select_dtypes(include=["number"]).columns
+            k_pubs_table[_k_num_pub] = k_pubs_table[_k_num_pub].astype(int)
+     
+            k_pubs_table20 = k_pubs_table.head(20).copy()
+     
+            # ── 6. AUTHOR TABLE ───────────────────────────────────────────
+            # Column name: "Author"  |  Explode on comma  |  Total articles  |  No Client %
+            k_exploded = kfinaldata.copy()
+            k_exploded["Author"] = (
+                k_exploded["Author"]
+                .astype(str)
+                .str.split(",")
+                .apply(lambda lst: [j.strip() for j in lst])
+            )
+            k_exploded = k_exploded.explode("Author").reset_index(drop=True)
+     
+            k_jr_cross = pd.crosstab(
+                k_exploded["Author"], k_exploded["Entity"]
+            ).reset_index()
+     
+            k_pub_for_jour = (
+                k_exploded[["Author", "Publication"]]
+                .drop_duplicates(subset=["Author"], keep="first")
+            )
+            k_Jour_raw = pd.merge(k_jr_cross, k_pub_for_jour, on="Author", how="left")
+     
+            _k_num_jour = k_Jour_raw.select_dtypes(include="number").columns
+            k_Jour_raw["Total"] = k_Jour_raw[_k_num_jour].sum(axis=1)
+            k_Jour_raw = k_Jour_raw.sort_values("Total", ascending=False).round()
+     
+            # Bureau News pushed to bottom, then GrandTotal row appended
+            k_bn = k_Jour_raw[k_Jour_raw["Author"] == "Bureau News"]
+            k_Jour_raw = k_Jour_raw[k_Jour_raw["Author"] != "Bureau News"]
+            k_Jour_raw = pd.concat([k_Jour_raw, k_bn], ignore_index=True)
+            k_Jour_raw.loc["GrandTotal"] = k_Jour_raw.sum(numeric_only=True)
+     
+            _k_int_cols = k_Jour_raw.columns.difference(["Author", "Publication"])
+            k_Jour_raw[_k_int_cols] = k_Jour_raw[_k_int_cols].astype(int)
+            k_Jour_raw.insert(1, "Publication", k_Jour_raw.pop("Publication"))
+     
+            k_jour_cols = (
+                ["Author", "Publication", k_client_coldt]
+                + [e for e in k_sov_order_no_client if e in k_Jour_raw.columns]
+                + ["Total"]
+            )
+            k_Jour_table = k_Jour_raw[k_jour_cols]
+            k_Jour_table20 = k_Jour_table.head(20).copy()
+     
+            # ── 7. JOURN ON COMP, NOT CLIENT ─────────────────────────────
+            k_client_cols_list = [
+                c for c in k_Jour_table.columns if c.startswith("Client-")
+            ]
+            k_comp_cols_list = [
+                c for c in k_Jour_table.columns
+                if c not in k_client_cols_list
+                and c not in ["Author", "Publication", "Total"]
+            ]
+     
+            k_Jour_Comp = k_Jour_table[
+                k_Jour_table[k_client_cols_list].eq(0).any(axis=1)
+            ].head(10).copy()
+            k_jcomp_cols = (
+                ["Author", "Publication", k_client_coldt]
+                + [e for e in k_sov_order_no_client if e in k_Jour_Comp.columns]
+                + ["Total"]
+            )
+            k_Jour_Comp = k_Jour_Comp[k_jcomp_cols]
+     
+            # ── 8. JOURN ON CLIENT, NOT COMP ─────────────────────────────
+            k_Jour_Client = k_Jour_table[
+                (k_Jour_table[k_client_cols_list].gt(0).any(axis=1))
+                & (k_Jour_table[k_comp_cols_list].eq(0).all(axis=1))
+            ].head(10).copy()
+            k_jclient_cols = (
+                ["Author", "Publication", k_client_coldt]
+                + [e for e in k_sov_order_no_client if e in k_Jour_Client.columns]
+            )
+            k_Jour_Client = k_Jour_Client[k_jclient_cols]
+            k_Jour_table_display   = k_Jour_table.rename(columns={"Author": "Journalist"})
+            k_Jour_table20_display = k_Jour_table20.rename(columns={"Author": "Journalist"})
+            k_Jour_Comp_display    = k_Jour_Comp.rename(columns={"Author": "Journalist"})
+            k_Jour_Client_display  = k_Jour_Client.rename(columns={"Author": "Journalist"})
+     
+            # ── 9. PREVIEW ────────────────────────────────────────────────
+            
+            k_preview_options = {
+                "SOV Table":                k_Entity_SOV3,
+                "Month-on-Month":           k_sov_dt11,
+                "Publication Table":        k_pubs_table,
+                "Journalist Table":             k_Jour_table,
+                "Journ on Comp, not Client":k_Jour_Comp,
+                "Journ on Client, not Comp":k_Jour_Client,
+            }
+            k_sel = st.selectbox(
+                "Select DataFrame to Preview (Kalki):",
+                list(k_preview_options.keys()),
+                key="kalki_preview_select",
+            )
+            st.dataframe(k_preview_options[k_sel])
+     
+            # ── 10. DOWNLOAD COMBINED EXCEL ───────────────────────────────
+            st.sidebar.write("## Download Kalki Combined Excel")
+            kalki_file_name = st.sidebar.text_input(
+                "File name for Kalki Combined Excel",
+                "Kalki_Combined_Excel.xlsx",
+            )
+            k_client_name_clean = (
+                    k_client_col.replace("Client-", "") if k_client_col else ""
+                )
+     
+            if st.sidebar.button("Download Kalki Combined Excel"):
+     
+                k_client_name_clean = (
+                    k_client_col.replace("Client-", "") if k_client_col else ""
+                )
+                k_entity_info = (
+                    f"Entity:{k_client_name_clean}\n"
+                    f"Time Period of analysis: {start_date} to {end_date}\n"
+                    "Source: (Online) Kalki All publications.\n"
+                    "News search: All Articles: entity mentioned at least once in the article"
+                )
+     
+                # DataFrames for the Report sheet — built after rename below
+                k_comments_report = [
+                    "SOV Table",
+                    "Month-on-Month Table",
+                    "Publication Table",
+                    "Journalist Table",
+                    "Journ-on Comp, not Client",
+                    "Journ-on Client, not Comp",
+                ]
+                # ── Rename "Author" → "Journalist" in all display copies ─────
+               
 
+                # DataFrames for the Report sheet (top-20 slices, renamed)
+                k_dfs_report = [
+                    k_Entity_SOV3,
+                    k_sov_dt11,
+                    k_pubs_table20,
+                    k_Jour_table20_display,
+                    k_Jour_Comp_display,
+                    k_Jour_Client_display,
+                ]
+
+                # Pass these objects explicitly – their last rows get bolded
+                k_highlight_report = [
+                    k_Entity_SOV3,           # Total row
+                    k_sov_dt11,              # Total row
+                    
+                ]
+
+                # ── Build Report sheet ────────────────────────────────────
+                k_excel_io = io.BytesIO()
+                kalki_multiple_dfs(
+                    k_dfs_report,
+                    "Tables",
+                    k_excel_io,
+                    k_comments_report,
+                    k_entity_info,
+                    highlight_refs=k_highlight_report,
+                )
+                k_excel_io.seek(0)
+                k_wb = load_workbook(k_excel_io)
+
+                # ── Add All Pub-Jour sheet ────────────────────────────────
+                k_pubs_all = k_pubs_table.copy()
+                k_pubs_all.at[k_pubs_all.index[-1], "Publication"] = "Total"
+     
+                k_dfs_all      = [k_pubs_all,            k_Jour_table_display]
+                k_comments_all = ["Publication Table",   "Journalist Table"]
+                k_highlight_all = [k_pubs_all,           k_Jour_table_display]
+     
+                kalki_multiple_dfs1(
+                    k_dfs_all,
+                    "All Pub-Jour",
+                    k_wb,
+                    k_comments_all,
+                    highlight_refs=k_highlight_all,
+                )
+     
+                k_excel_io2 = io.BytesIO()
+                k_wb.save(k_excel_io2)
+                k_excel_io2.seek(0)
+     
+                # ── Add entity-wise sheets (raw uploaded data, split by Entity) ──
+                # No renaming, no reformatting — data written exactly as uploaded.
+                kraw_for_entity = kalki_data_raw.copy()
+     
+                with pd.ExcelWriter(
+                    k_excel_io2, engine="openpyxl",
+                    mode="a", if_sheet_exists="new"
+                ) as k_writer:
+                    for k_entity_name in kraw_for_entity["Entity"].unique():
+                        k_entity_df = kraw_for_entity[
+                            kraw_for_entity["Entity"] == k_entity_name
+                        ].reset_index(drop=True)
+
+                        k_sheet_name = str(k_entity_name)[:31]
+                        k_entity_df.to_excel(
+                            k_writer, sheet_name=k_sheet_name, index=False
+                        )
+
+                        ws_k   = k_writer.sheets[k_sheet_name]
+                        cols_k = k_entity_df.columns.tolist()
+
+                        # ── Identify special columns (case-insensitive) ──────
+                        def _col_letter_if(keywords):
+                            """Return get_column_letter index for first matching col, else None."""
+                            for i, c in enumerate(cols_k, 1):
+                                if any(kw in str(c).lower() for kw in keywords):
+                                    return i
+                            return None
+
+                        title_idx   = _col_letter_if(["title", "headline"])
+                        summary_idx = _col_letter_if(["summary", "opening text",
+                                                       "hit sentence", "article summary"])
+                        url_idx     = _col_letter_if(["url"])
+
+                        # Columns to SKIP during auto-width (0-based col positions)
+                        skip_auto_idx = set()
+                        for i, c in enumerate(cols_k):
+                            c_lower = str(c).lower()
+                            if any(kw in c_lower for kw in [
+                                "title", "headline", "summary",
+                                "opening text", "hit sentence",
+                                "article summary", "url"
+                            ]):
+                                skip_auto_idx.add(i)
+
+                        # ── Style objects ────────────────────────────────────
+                        
+                        hdr_font     = Font(bold=True, name="Calibri")
+                        data_font    = Font(name="Calibri")
+                        ctr          = Alignment(horizontal="center",
+                                                 vertical="center",
+                                                 wrap_text=False)
+                        ctr_wrap     = Alignment(horizontal="center",
+                                                 vertical="center",
+                                                 wrap_text=True)
+
+                        # ── Header row (row 1): yellow + bold + center ───────
+                        for cell in ws_k[1]:
+                            cell.font      = hdr_font
+                            cell.alignment = ctr
+
+                        # ── Data rows: center align; wrap only Title column ──
+                        for row in ws_k.iter_rows(min_row=2, max_row=ws_k.max_row):
+                            for cell in row:
+                                cell.font      = data_font
+                                cell.alignment = (
+                                    ctr_wrap if cell.column == title_idx else ctr
+                                )
+
+                        # ── Uniform row height (all rows including header) ───
+                        for rn in range(1, ws_k.max_row + 1):
+                            ws_k.row_dimensions[rn].height = 30
+
+                        # ── Column widths ────────────────────────────────────
+                        for col_0, col_name in enumerate(cols_k):
+                            col_ltr   = get_column_letter(col_0 + 1)
+                            col_lower = str(col_name).lower()
+
+                            if any(kw in col_lower for kw in ["title", "headline"]):
+                                # Wide + wrap text already applied to data cells above
+                                ws_k.column_dimensions[col_ltr].width = 55
+
+                            elif any(kw in col_lower for kw in [
+                                "summary", "opening text",
+                                "hit sentence", "article summary"
+                            ]):
+                                # Keep narrow — do not auto-expand
+                                ws_k.column_dimensions[col_ltr].width = 35
+
+                            elif "url" in col_lower:
+                                # Fixed width for URL column
+                                ws_k.column_dimensions[col_ltr].width = 35
+
+                            else:
+                                # Auto-fit: max of header length vs all cell values
+                                max_len = len(str(col_name))
+                                for r in ws_k.iter_rows(
+                                    min_row=2, max_row=ws_k.max_row,
+                                    min_col=col_0 + 1, max_col=col_0 + 1
+                                ):
+                                    for cell in r:
+                                        try:
+                                            max_len = max(
+                                                max_len,
+                                                len(str(cell.value or ""))
+                                            )
+                                        except Exception:
+                                            pass
+                                # Cap at 40 to prevent absurdly wide columns
+                                ws_k.column_dimensions[col_ltr].width = min(
+                                    float(max_len) + 2, 40
+                                )
+
+                        # ── URL column: make each cell a clickable hyperlink ─
+                        if url_idx:
+                            url_ltr = get_column_letter(url_idx)
+                            for rn in range(2, ws_k.max_row + 1):
+                                cell = ws_k[f"{url_ltr}{rn}"]
+                                if (cell.value
+                                        and isinstance(cell.value, str)
+                                        and cell.value.startswith("http")):
+                                    cell.hyperlink = cell.value
+                                    cell.style     = "Hyperlink"
+                                    # Re-apply center after Hyperlink style resets alignment
+                                    cell.alignment = ctr
+
+                    k_writer.book.worksheets[0].title = "Report"
+     
+                # ── Re-order sheets ───────────────────────────────────────
+                k_wb_final   = load_workbook(k_excel_io2)
+                k_all_sheets = k_wb_final.sheetnames
+                k_client_sheet = next(
+                    (s for s in k_all_sheets if s.startswith("Client-")), None
+                )
+                k_ordered = ["Report", "All Pub-Jour"]
+                if k_client_sheet:
+                    k_ordered.append(k_client_sheet)
+                k_ordered += [s for s in k_sov_order_no_client if s in k_all_sheets]
+                k_ordered += [s for s in k_all_sheets if s not in k_ordered]
+                k_wb_final._sheets = [k_wb_final[s] for s in k_ordered]
+     
+                k_final_io = io.BytesIO()
+                k_wb_final.save(k_final_io)
+                k_final_io.seek(0)
+     
+                k_b64  = base64.b64encode(k_final_io.read()).decode()
+                k_href = (
+                    f'<a href="data:application/vnd.openxmlformats-officedocument'
+                    f'.spreadsheetml.sheet;base64,{k_b64}" '
+                    f'download="{kalki_file_name}">Download Kalki Combined Excel</a>'
+                )
+                
+                # ── Build Kalki presentation ────────────────────────────────────────
+                st.sidebar.markdown(k_href, unsafe_allow_html=True)
+
+            # ← This closing parenthesis ends the "Download Kalki Combined Excel" if-block
+            # ── Build Kalki presentation ──────────────────────────────────────
+            st.sidebar.write("## Download Kalki DataFrames as a PowerPoint File")
+            k_pptx_file_name = st.sidebar.text_input(
+                "Enter file name for Kalki PowerPoint",
+                "kalki_dataframes_presentation.pptx",
+                key="kalki_pptx_name"
+            )
+
+            if st.sidebar.button("Download Kalki PowerPoint", key="kalki_pptx_button"):
+                def add_kalki_table_to_slide(slide, df, title, textbox_text, prs_obj):
+                    rows, cols = df.shape
+                    left = Inches(0.8)
+                    top = Inches(1.5)
+                    width = Inches(14)
+                    max_table_height = Inches(5)
+                    total_height_needed = Inches(0.8 * (rows + 1))
+                    height = max_table_height if total_height_needed > max_table_height else total_height_needed
+                    title_shape = slide.shapes.add_textbox(left, Inches(0.2), width, Inches(0.2))
+                    title_frame = title_shape.text_frame
+                    title_frame.text = title
+                    for paragraph in title_frame.paragraphs:
+                        for run in paragraph.runs:
+                            run.font.size = Pt(28)
+                            run.font.bold = True
+                            run.font.name = 'Helvetica'
+                            run.font.color.rgb = RGBColor(240, 127, 9)
+                    title_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                    table = slide.shapes.add_table(rows + 1, cols, left, top, width, height).table
+                    for i in range(cols):
+                        cell = table.cell(0, i)
+                        cell.text = str(df.columns[i])
+                        for paragraph in cell.text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.name = 'Gill Sans'
+                                run.font.size = Pt(15)
+                                run.font.bold = True
+                                run.font.color.rgb = RGBColor(0, 0, 0)
+                        cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(255, 165, 0)
+                        cell.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
+                    for i in range(rows):
+                        for j in range(cols):
+                            cell = table.cell(i + 1, j)
+                            cell.text = str(df.values[i, j])
+                            for paragraph in cell.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.font.name = 'Gill Sans'
+                                    run.font.size = Pt(15)
+                            cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
+                            cell.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
+                    
+                    left_logo = Inches(0.0)
+                    top_logo = prs_obj.slide_height - Inches(1)
+                    if os.path.exists(img_path):
+                        slide.shapes.add_picture(img_path, left_logo, top_logo, height=Inches(1))
+
+                # ── Extract key stats ───────────────────────────────────────────
+                k_total_news = int(k_Entity_SOV3.loc[k_Entity_SOV3["Entity"] == "Total", "News Count"].values[0]) if "Total" in k_Entity_SOV3["Entity"].values else 0
+                k_client_sov_count = int(k_Entity_SOV3.loc[k_Entity_SOV3["Entity"] == k_client_col, "News Count"].values[0]) if k_client_col in k_Entity_SOV3["Entity"].values else 0
+
+                k_pubs_trim = k_pubs_table.drop(k_pubs_table.index[-1]).copy()
+                k_pubs_trim['Publication'] = k_pubs_trim['Publication'].fillna('Unknown').astype(str).str.strip()
+                k_top1_pub = k_pubs_trim.iloc[0]["Publication"] if len(k_pubs_trim) > 0 else "N/A"
+                k_top1_pub_count = int(k_pubs_trim.iloc[0]["Total"]) if len(k_pubs_trim) > 0 else 0
+                k_top2_pub = k_pubs_trim.iloc[1]["Publication"] if len(k_pubs_trim) > 1 else "N/A"
+                k_top2_pub_count = int(k_pubs_trim.iloc[1]["Total"]) if len(k_pubs_trim) > 1 else 0
+                k_top3_pub = k_pubs_trim.iloc[2]["Publication"] if len(k_pubs_trim) > 2 else "N/A"
+                k_top3_pub_count = int(k_pubs_trim.iloc[2]["Total"]) if len(k_pubs_trim) > 2 else 0
+
+                k_client_pubs = k_pubs_trim[["Publication", k_client_col]].copy()
+                k_client_pubs = k_client_pubs.sort_values(by=k_client_col, ascending=False)
+                k_topc1_pub = k_client_pubs.iloc[0]["Publication"] if len(k_client_pubs) > 0 else "N/A"
+                k_topc1_count = int(k_client_pubs.iloc[0][k_client_col]) if len(k_client_pubs) > 0 else 0
+                k_topc2_pub = k_client_pubs.iloc[1]["Publication"] if len(k_client_pubs) > 1 else "N/A"
+                k_topc2_count = int(k_client_pubs.iloc[1][k_client_col]) if len(k_client_pubs) > 1 else 0
+                k_topc3_pub = k_client_pubs.iloc[2]["Publication"] if len(k_client_pubs) > 2 else "N/A"
+                k_topc3_count = int(k_client_pubs.iloc[2][k_client_col]) if len(k_client_pubs) > 2 else 0
+
+                k_top10_sum = int(k_pubs_trim[k_client_col].sort_values(ascending=False).head(10).sum())
+                k_top10_perc = int(round((k_top10_sum / k_client_sov_count) * 100)) if k_client_sov_count > 0 else 0
+
+                k_jour_trim = k_Jour_table.copy()
+                k_jour_trim = k_jour_trim[~k_jour_trim["Author"].astype(str).str.strip().str.lower().isin(["grandtotal", "bureau news"])]
+                k_topj1_name = k_jour_trim.iloc[0]["Author"] if len(k_jour_trim) > 0 else "N/A"
+                k_topj1_pub  = k_jour_trim.iloc[0]["Publication"] if len(k_jour_trim) > 0 else "N/A"
+                k_topj1_count = int(k_jour_trim.iloc[0]["Total"]) if len(k_jour_trim) > 0 else 0
+                k_topj2_name = k_jour_trim.iloc[1]["Author"] if len(k_jour_trim) > 1 else "N/A"
+                k_topj2_pub  = k_jour_trim.iloc[1]["Publication"] if len(k_jour_trim) > 1 else "N/A"
+                k_topj2_count = int(k_jour_trim.iloc[1]["Total"]) if len(k_jour_trim) > 1 else 0
+                k_topj3_name = k_jour_trim.iloc[2]["Author"] if len(k_jour_trim) > 2 else "N/A"
+                k_topj3_pub  = k_jour_trim.iloc[2]["Publication"] if len(k_jour_trim) > 2 else "N/A"
+                k_topj3_count = int(k_jour_trim.iloc[2]["Total"]) if len(k_jour_trim) > 2 else 0
+
+                k_client_col_jour = [c for c in k_Jour_table.columns if c.startswith("Client-")][0]
+                k_jour_client_sorted = k_jour_trim.sort_values(by=k_client_col_jour, ascending=False)
+                k_jc1_name  = k_jour_client_sorted.iloc[0]["Author"] if len(k_jour_client_sorted) > 0 else "N/A"
+                k_jc1_pub   = k_jour_client_sorted.iloc[0]["Publication"] if len(k_jour_client_sorted) > 0 else "N/A"
+                k_jc1_count = int(k_jour_client_sorted.iloc[0][k_client_col_jour]) if len(k_jour_client_sorted) > 0 else 0
+                k_jc2_name  = k_jour_client_sorted.iloc[1]["Author"] if len(k_jour_client_sorted) > 1 else "N/A"
+                k_jc2_pub   = k_jour_client_sorted.iloc[1]["Publication"] if len(k_jour_client_sorted) > 1 else "N/A"
+                k_jc2_count = int(k_jour_client_sorted.iloc[1][k_client_col_jour]) if len(k_jour_client_sorted) > 1 else 0
+                k_jc3_name  = k_jour_client_sorted.iloc[2]["Author"] if len(k_jour_client_sorted) > 2 else "N/A"
+                k_jc3_pub   = k_jour_client_sorted.iloc[2]["Publication"] if len(k_jour_client_sorted) > 2 else "N/A"
+                k_jc3_count = int(k_jour_client_sorted.iloc[2][k_client_col_jour]) if len(k_jour_client_sorted) > 2 else 0
+
+                k_bureau_col = k_Jour_table[k_Jour_table["Author"] == "Bureau News"][k_client_col_jour].values
+                k_bureau_articles = int(k_bureau_col[0]) if len(k_bureau_col) > 0 else 0
+                k_individual_articles = k_client_sov_count - k_bureau_articles
+                k_bureau_pct = int(round((k_bureau_articles / k_client_sov_count) * 100)) if k_client_sov_count > 0 else 0
+                k_individual_pct = 100 - k_bureau_pct
+
+                k_jour_filtered = k_jour_trim[k_jour_trim["Author"] != "Bureau News"]
+                k_total_journalists = len(k_jour_filtered)
+                k_non_zero_journalists = k_jour_filtered[k_jour_filtered[k_client_col_jour] > 0].shape[0]
+                k_articles_for_client = int(k_jour_filtered[k_jour_filtered[k_client_col_jour] > 0][k_client_col_jour].sum())
+                k_client_jour_pct = int(round((k_non_zero_journalists / k_total_journalists) * 100)) if k_total_journalists > 0 else 0
+                k_engage_with = k_total_journalists - k_non_zero_journalists
+
+                k_jcomp1_name  = k_Jour_Comp.iloc[0]["Author"] if len(k_Jour_Comp) > 0 else "N/A"
+                k_jcomp1_pub   = k_Jour_Comp.iloc[0]["Publication"] if len(k_Jour_Comp) > 0 else "N/A"
+                k_jcomp1_count = int(k_Jour_Comp.iloc[0]["Total"]) if len(k_Jour_Comp) > 0 and "Total" in k_Jour_Comp.columns else 0
+                k_jcomp2_name  = k_Jour_Comp.iloc[1]["Author"] if len(k_Jour_Comp) > 1 else "N/A"
+                k_jcomp2_pub   = k_Jour_Comp.iloc[1]["Publication"] if len(k_Jour_Comp) > 1 else "N/A"
+                k_jcomp2_count = int(k_Jour_Comp.iloc[1]["Total"]) if len(k_Jour_Comp) > 1 and "Total" in k_Jour_Comp.columns else 0
+                k_jcomp3_name  = k_Jour_Comp.iloc[2]["Author"] if len(k_Jour_Comp) > 2 else "N/A"
+                k_jcomp3_pub   = k_Jour_Comp.iloc[2]["Publication"] if len(k_Jour_Comp) > 2 else "N/A"
+                k_jcomp3_count = int(k_Jour_Comp.iloc[2]["Total"]) if len(k_Jour_Comp) > 2 and "Total" in k_Jour_Comp.columns else 0
+
+                k_jclient1_name  = k_Jour_Client.iloc[0]["Author"] if len(k_Jour_Client) > 0 else "N/A"
+                k_jclient1_pub   = k_Jour_Client.iloc[0]["Publication"] if len(k_Jour_Client) > 0 else "N/A"
+                k_jclient1_count = int(k_Jour_Client.iloc[0][k_client_col]) if len(k_Jour_Client) > 0 else 0
+                k_jclient2_name  = k_Jour_Client.iloc[1]["Author"] if len(k_Jour_Client) > 1 else "N/A"
+                k_jclient2_pub   = k_Jour_Client.iloc[1]["Publication"] if len(k_Jour_Client) > 1 else "N/A"
+                k_jclient2_count = int(k_Jour_Client.iloc[1][k_client_col]) if len(k_Jour_Client) > 1 else 0
+
+                k_mom_trim = k_sov_dt11[k_sov_dt11["Date"].astype(str) != "Total"].copy()
+                k_mom_sorted = k_mom_trim.sort_values(by=k_client_col, ascending=False) if k_client_col in k_mom_trim.columns else k_mom_trim
+                k_peak_month = str(k_mom_sorted.iloc[0]["Date"]) if len(k_mom_sorted) > 0 else "N/A"
+                k_peak_count = int(k_mom_sorted.iloc[0][k_client_col]) if len(k_mom_sorted) > 0 else 0
+
+                k_cn = k_client_name_clean
+
+                # ── img paths (reuse from Online/Print section) ─────────────────
+                img_path  = r"New logo snip.png"
+                img_path1 = r"New Templete main slide.png"
+
+                # ── CREATE PRESENTATION ─────────────────────────────────────────
+                k_prs = Presentation()
+                k_prs.slide_width = Inches(16)
+                k_prs.slide_height = Inches(9)
+
+                # Slide 1 — Title
+                slide_layout = k_prs.slide_layouts[0]
+                slide = k_prs.slides.add_slide(slide_layout)
+                if os.path.exists(img_path1):
+                    slide.shapes.add_picture(img_path1, Inches(0), Inches(0), width=k_prs.slide_width, height=k_prs.slide_height)
+                tb = slide.shapes.add_textbox(Inches(1.9), Inches(1.0), Inches(15), Inches(1))
+                tf = tb.text_frame
+                tf.text = f"{k_cn}\nNews Analysis\nBy Media Research & Analytics Team"
+                for paragraph in tf.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(50)
+                        run.font.bold = True
+                        run.font.name = 'Helvetica'
+                        run.font.color.rgb = RGBColor(255, 255, 255)
+                        paragraph.alignment = PP_ALIGN.LEFT
+
+                # Slide 2 — Parameters
+                slide_layout = k_prs.slide_layouts[6]
+                slide = k_prs.slides.add_slide(slide_layout)
+                if os.path.exists(img_path):
+                    slide.shapes.add_picture(img_path, Inches(0.0), k_prs.slide_height - Inches(1), height=Inches(1))
+                for shape in slide.placeholders:
+                    if shape.has_text_frame:
+                        shape.text_frame.clear()
+                hdr = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(14), Inches(0.7))
+                hdr.text_frame.text = "Parameters"
+                for paragraph in hdr.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(30)
+                        run.font.bold = True
+                        run.font.name = 'Helvetica'
+                        run.font.color.rgb = RGBColor(240, 127, 9)
+                        paragraph.alignment = PP_ALIGN.CENTER
+                tp = slide.shapes.add_textbox(Inches(0.6), Inches(2), Inches(14), Inches(0.5))
+                tp.text_frame.text = f"Time Period : {start_date} to {end_date}"
+                tp.text_frame.paragraphs[0].font.size = Pt(24)
+                tp.text_frame.paragraphs[0].font.name = 'Gill Sans'
+                src = slide.shapes.add_textbox(Inches(0.6), Inches(3), Inches(10), Inches(1.5))
+                src.text_frame.word_wrap = True
+                p_src = src.text_frame.add_paragraph()
+                p_src.text = "Source: (Online) Kalki All publications."
+                p_src.font.size = Pt(24)
+                p_src.font.name = 'Gill Sans'
+                ns = slide.shapes.add_textbox(Inches(0.6), Inches(5), Inches(10), Inches(0.75))
+                ns.text_frame.word_wrap = True
+                p_ns = ns.text_frame.add_paragraph()
+                p_ns.text = "News Search : All Articles: entity mentioned at least once in the article"
+                p_ns.font.size = Pt(24)
+                p_ns.font.name = 'Gill Sans'
+
+                # Slide 3 — "Online Media" divider
+                slide_layout = k_prs.slide_layouts[0]
+                slide = k_prs.slides.add_slide(slide_layout)
+                if os.path.exists(img_path1):
+                    slide.shapes.add_picture(img_path1, Inches(0), Inches(0), width=k_prs.slide_width, height=k_prs.slide_height)
+                tb2 = slide.shapes.add_textbox(Inches(1.9), Inches(1.0), Inches(15), Inches(1))
+                tb2.text_frame.text = "Online Media"
+                for paragraph in tb2.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(50)
+                        run.font.bold = True
+                        run.font.name = 'Helvetica'
+                        run.font.color.rgb = RGBColor(255, 255, 255)
+                        paragraph.alignment = PP_ALIGN.LEFT
+
+                # ── Prepare table copies ────────────────────────────────────────
+                k_Entity_SOV3_ppt = k_Entity_SOV3.copy()
+                k_sov_dt11_ppt    = k_sov_dt11.copy()
+                k_pubs_ppt        = k_pubs_table.head(10).copy()
+                _kn = k_pubs_ppt.select_dtypes(include=['number']).columns
+                k_pubs_ppt[_kn]   = k_pubs_ppt[_kn].astype(int)
+                k_Jour_ppt        = k_Jour_table20_display.head(10).copy()
+                k_Jour_Comp_ppt   = k_Jour_Comp_display.copy()
+                k_Jour_Client_ppt = k_Jour_Client_display.copy()
+
+                k_dfs_ppt = [k_Entity_SOV3_ppt, k_sov_dt11_ppt, k_pubs_ppt,
+                             k_Jour_ppt, k_Jour_Comp_ppt, k_Jour_Client_ppt]
+                k_table_titles_ppt = [
+                    f'SOV Table of {k_cn} and competition',
+                    f'Month-on-Month Table of {k_cn} and competition',
+                    f'Publication Table on {k_cn} and competition',
+                    f'Journalist writing on {k_cn} and competition',
+                    f'Journalists writing on Comp and not on {k_cn}',
+                    f'Journalists writing on {k_cn} and not on Comp',
+                ]
+                k_textbox_texts = [
+                    (f"• {k_cn} and its peers collectively received {k_total_news} news mentions online during the specified time period.\n"
+                     f"• {k_cn} received {k_client_sov_count} articles during this period."),
+                    (f"• {k_cn} witnessed its highest news coverage in {k_peak_month}, with {k_peak_count} articles.\n"
+                     f"• Month-on-month trends indicate fluctuations in media visibility for {k_cn} and its competitors."),
+                    (f"• Leading publications: {k_top1_pub} ({k_top1_pub_count}), {k_top2_pub} ({k_top2_pub_count}), {k_top3_pub} ({k_top3_pub_count}).\n"
+                     f"• Publications covering {k_cn}: {k_topc1_pub} ({k_topc1_count}), {k_topc2_pub} ({k_topc2_count}), {k_topc3_pub} ({k_topc3_count}).\n"
+                     f"• Top 10 publications contribute {k_top10_perc}% ({k_top10_sum} of {k_client_sov_count} articles)."),
+                    (f"• Top journalists: {k_topj1_name} ({k_topj1_pub}, {k_topj1_count}), {k_topj2_name} ({k_topj2_pub}, {k_topj2_count}), {k_topj3_name} ({k_topj3_pub}, {k_topj3_count}).\n"
+                     f"• Journalists covering {k_cn}: {k_jc1_name} ({k_jc1_pub}, {k_jc1_count}), {k_jc2_name} ({k_jc2_pub}, {k_jc2_count}), {k_jc3_name} ({k_jc3_pub}, {k_jc3_count}).\n"
+                     f"• {k_bureau_articles} ({k_bureau_pct}%) Bureau articles, {k_individual_articles} ({k_individual_pct}%) individual. "
+                     f"{k_non_zero_journalists}/{k_total_journalists} journalists ({k_client_jour_pct}%) mentioned {k_cn}."),
+                    (f"• Top journalists on competitors not on {k_cn}: {k_jcomp1_name} ({k_jcomp1_pub}, {k_jcomp1_count}), "
+                     f"{k_jcomp2_name} ({k_jcomp2_pub}, {k_jcomp2_count}), {k_jcomp3_name} ({k_jcomp3_pub}, {k_jcomp3_count}).\n"
+                     f"• Engagement opportunity for {k_cn}."),
+                    (f"• Journalists on {k_cn} not competitors: {k_jclient1_name} ({k_jclient1_pub}, {k_jclient1_count}), "
+                     f"{k_jclient2_name} ({k_jclient2_pub}, {k_jclient2_count})."),
+                ]
+
+                # ── Add data slides ─────────────────────────────────────────────
+                for i, (df, title) in enumerate(zip(k_dfs_ppt, k_table_titles_ppt)):
+                    slide = k_prs.slides.add_slide(k_prs.slide_layouts[6])
+                    add_kalki_table_to_slide(slide, df, title, k_textbox_texts[i], k_prs)
+                    if i == 0:
+                        k_img4 = generate_bar_chart(k_Entity_SOV3_ppt.copy())
+                        add_image_to_slide(slide, k_img4)
+                    if i == 1:
+                        # ── Add a NEW slide immediately after MOM table with line graph ──
+                        k_img5 = generate_line_graph(k_sov_dt11_ppt.copy())
+                        line_slide = k_prs.slides.add_slide(k_prs.slide_layouts[6])
+                        if os.path.exists(img_path):
+                            line_slide.shapes.add_picture(
+                                img_path, Inches(0.0),
+                                k_prs.slide_height - Inches(1), height=Inches(1)
+                            )
+                        line_title = line_slide.shapes.add_textbox(
+    Inches(0.8), Inches(0.2), Inches(14), Inches(0.2)
+)
+                        line_title.text_frame.text = f'Month-on-Month Graph of {k_cn} and competition'
+                        for paragraph in line_title.text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(28)
+                                run.font.bold = True
+                                run.font.name = 'Helvetica'
+                                run.font.color.rgb = RGBColor(240, 127, 9)
+                        line_title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                        add_image_to_slide1(line_slide, k_img5)
+
+                # ── Save and use st.download_button (NOT markdown href) ─────────
+                k_pptx_output = io.BytesIO()
+                k_prs.save(k_pptx_output)
+                k_pptx_output.seek(0)
+
+                st.sidebar.download_button(
+                    label="⬇️ Click here to Download Kalki PPT",
+                    data=k_pptx_output,
+                    file_name=k_pptx_file_name,
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    key="kalki_pptx_download"
+                )
+            # ── Kalki Grok Prompts ────────────────────────────────────────
+            st.sidebar.write("## Download Kalki Grok Prompts (.docx)")
+
+            if st.sidebar.button("Download Kalki Grok Prompts", key="kalki_grok_button"):
+                from docx import Document
+                from docx.shared import RGBColor as DocxRGBColor, Pt as DocxPt
+
+                # ── Build competitors string from Kalki entities ──────────
+                k_competitors = [
+                    e for e in kfinaldata["Entity"].unique()
+                    if not e.startswith("Client-")
+                ]
+                if len(k_competitors) > 1:
+                    k_competitors_str = ", ".join(k_competitors[:-1]) + f" and {k_competitors[-1]}"
+                elif len(k_competitors) == 1:
+                    k_competitors_str = k_competitors[0]
+                else:
+                    k_competitors_str = "None"
+
+                k_ind = industry  # reuse industry from sidebar input
+                k_c   = k_client_name_clean
+                k_s   = start_date
+                k_e   = end_date
+
+                # ── Color palette ─────────────────────────────────────────
+                CLIENT_COLOR     = DocxRGBColor(0, 102, 255)
+                DATE_COLOR       = DocxRGBColor(0, 128, 0)
+                COMPETITOR_COLOR = DocxRGBColor(255, 140, 0)
+                INDUSTRY_COLOR   = DocxRGBColor(128, 0, 128)
+                PUB_COLOR        = DocxRGBColor(255, 20, 147)
+                JOURNALIST_COLOR = DocxRGBColor(225, 167, 63)
+                BLACK            = DocxRGBColor(0, 0, 0)
+
+                def k_add_run(p, txt, color=BLACK, bold=False):
+                    r = p.add_run(txt)
+                    r.font.color.rgb = color
+                    r.bold = bold
+                    return p
+
+                k_doc = Document()
+
+                # ── Color legend ──────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "Color code: ", bold=True)
+                k_add_run(p, "Client name, ",      CLIENT_COLOR,     bold=True)
+                k_add_run(p, "Dates, ",            DATE_COLOR,       bold=True)
+                k_add_run(p, "Competitor name, ",  COMPETITOR_COLOR, bold=True)
+                k_add_run(p, "Industry name, ",    INDUSTRY_COLOR,   bold=True)
+                k_add_run(p, "Publications writing on Industry, ", PUB_COLOR,        bold=True)
+                k_add_run(p, "Journalists writing on Industry",    JOURNALIST_COLOR, bold=True)
+
+                p = k_doc.add_paragraph()
+                p.add_run(
+                    "I work in Media Research Team at a PR Company, I will be sharing the below "
+                    "Qualitative insights with the PR professionals. Please keep this in mind and "
+                    "provide insights accordingly."
+                )
+
+                # ── Requirements ─────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                p.add_run("Satisfy the below requirements :").bold = True
+
+                p = k_doc.add_paragraph()
+                p.add_run("Prompt 1 follow the below requirements").bold = True
+                for req in [
+                    "Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much elaborative as possible",
+                    "Max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner",
+                    "In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should be very much elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative",
+                ]:
+                    k_doc.add_paragraph(req, style='List Bullet')
+
+                p = k_doc.add_paragraph()
+                r = p.add_run("NOTE : "); r.bold = True
+                p.add_run("Don't provide insight for prompt 3")
+
+                p = k_doc.add_paragraph()
+                p.add_run("Prompt 4,5 follow the below requirements").bold = True
+                k_doc.add_paragraph(
+                    "Please give the insights in tabular format, don't mention no. of articles anywhere) "
+                    "Give one elaborative paragraph before creating a table.",
+                    style='List Bullet'
+                )
+
+                p = k_doc.add_paragraph()
+                p.add_run("Prompt 6,7 follow the below requirements").bold = True
+                k_doc.add_paragraph(
+                    "Give five or more critiques pointwise (be elaborative as much as possible) with the "
+                    "critiques pointer headers highlighted (just have 2-3 elaborative pointers in each critiques). "
+                    "Give one paragraph elaborative description before giving the pointers for critiques.",
+                    style='List Bullet'
+                )
+
+                p = k_doc.add_paragraph()
+                p.add_run("Prompt 9,10 follow the below requirements").bold = True
+                p = k_doc.add_paragraph(style='List Bullet')
+                p.add_run(
+                    "Give paragraph wise for each Publications/Journalist(along with publication name) mentioned here "
+                    "and highlight the Publication name/Journalist, please be very much elaborative don't be generic "
+                    "relate it with the news released by these publications/journalist on the "
+                )
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry. (")
+                r = p.add_run("Note : "); r.bold = True
+                p.add_run("Publications/Journalist(along with publication name) should be highlighted)")
+
+                p = k_doc.add_paragraph(style='List Bullet')
+                p.add_run("Don't give me the number of news written by these publications/journalists just the content that has been written on the ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry.")
+
+                k_doc.add_paragraph(
+                    "Additionally, follow the same requirements given for Prompt 1 excluding the first point in it "
+                    "(i.e Please give topicwise/bucketwise paragraph with topic/bucket)",
+                    style='List Bullet'
+                )
+
+                k_doc.add_paragraph()
+
+                p = k_doc.add_paragraph()
+                r = p.add_run("For Prompts 1-10 "); r.bold = True
+                p.add_run("please note that : do not consider press release from the companys website or any social media platform")
+
+                p = k_doc.add_paragraph()
+                p.add_run("Before giving insight for each prompt mention the title like Conversations on Client company, Topicwise Conversations on Client company,… etc (and replace Client Company with ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(" and Industry with ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(") with formatting ### and no bold formatting and topics/buckets with bold formatting **, please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
+
+                k_doc.add_paragraph()
+
+                # ── Prompt 1 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "1) Conversations on Client company - ", bold=True)
+                p.add_run("Could you Summarize the news articles from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(" for ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(
+                    "? Please summarize as many topics as possible but do not consider press release from the "
+                    "companys website or any social media platform. Only summarize the articles from print and "
+                    "online news platforms."
+                )
+
+                # ── Prompt 2 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "2) Topicwise Conversation on Client Company - ", bold=True)
+                p.add_run("Could you Summarize the news articles from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(" for ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(
+                    ". Please summarize the news articles as per the following categories. I am giving you the buckets. "
+                    "Please arrange the news as per their content in the relevant buckets and summarize that news. "
+                    "Only summarize the news articles from print and online news platforms. The buckets are as follows: "
+                    "Financial Performance, Product and Services, Social Good (includes CSR, ESG, Philanthropy, Environment), "
+                    "Employee Engagement (includes hiring, resignation, layoffs, training, skilling, employee benefits, appraisals...), "
+                    "Business Strategy (include growth, mergers, future, market share...), Vision and Leadership (Interviews, "
+                    "interaction, thought leadership, authored articles...), Legal and Regulatory, Tech & innovation, "
+                    "Stock related (stock recommendations, stock movements). ("
+                )
+                r = p.add_run("Note : "); r.bold = True
+                p.add_run(
+                    "Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much "
+                    "elaborative as possible. Max 2 sentences should be in a line then move into next line and follow "
+                    "the same thing consider them as a point and the points should always be elaborative and not in one liner. "
+                    "In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should "
+                    "be very much elaborative as possible and there should be atleast 5-6 such points without losing relevant "
+                    "news in each topic and those should be elaborative)"
+                )
+
+                # ── Prompt 3 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "3) Topicwise Conversation on Competitor Company - ", bold=True)
+                p.add_run("Could you Summarize the news articles from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(" for ")
+                k_add_run(p, k_competitors_str, COMPETITOR_COLOR)
+                p.add_run(
+                    "? Give Topicwise conversation entity wise, one after the other follow the bucket structure for each "
+                    "of the entities, want separate separate topic wise conversation for each entity. Please summarize the "
+                    "news articles as per the following categories. I am giving you the buckets. Please arrange the news as "
+                    "per their content in the relevant buckets and summarize that news. Only summarize the news articles from "
+                    "print and online news platforms. The buckets are as follows: Financial Performance, Product and Services, "
+                    "Social Good (includes CSR, ESG, Philanthropy, Environment), Employee Engagement (includes hiring, "
+                    "resignation, layoffs, training, skilling, employee benefits, appraisals...), Business Strategy (include "
+                    "growth, mergers, future, market share...), Vision and Leadership (Interviews, interaction, thought "
+                    "leadership, authored articles...), Legal and Regulatory, Tech & innovation, Stock related (stock "
+                    "recommendations, stock movements). ("
+                )
+                r = p.add_run("Note : "); r.bold = True
+                p.add_run("Please give topicwise/bucketwise paragraph with topic/bucket highlighted please be very much elaborative as possible. Max 2 sentences should be in a line then move into next line and follow the same thing consider them as a point and the points should always be elaborative and not in one liner. In each topicwise/bucketwise paragraph and in each and every point in the paragraph, the content should be very much elaborative as possible and there should be atleast 5-6 such points without losing relevant news in each topic and those should be elaborative) Give it with the Header i.e Topicwise Conversation on Competitor Company with formatting ### and competitor name ")
+                k_add_run(p, k_competitors_str, COMPETITOR_COLOR)
+                p.add_run(" with formatting ## with no bold formatting and buckets with bold formatting **, please follow the formatting strictly don't use bold formatting in the content of any of the buckets/topics")
+
+                # ── Prompt 4 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "4) Month – on – Month Insights - ", bold=True)
+                p.add_run("Give me month on month breakdown of news coverage for ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(" from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(
+                    ". Give me details of events that have lead to a spike in the media coverage and if no news is "
+                    "present for a particular month mention that in the table itself."
+                )
+
+                # ── Prompt 5 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "5) Unique Conversations by Competitors - ", bold=True)
+                p.add_run("What factors contributed to ")
+                k_add_run(p, k_competitors_str, COMPETITOR_COLOR)
+                p.add_run(" higher media coverage in the ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry between ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(" compared to ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(
+                    "? Identify the unique conversation topics (topics where "
+                )
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(
+                    " is not mentioned) where these companies were mentioned in the Headline or the lead para or if "
+                    "they were mentioned atleast twice in the article that have driven the higher media coverage. ("
+                )
+                r = p.add_run("Note : "); r.bold = True
+                p.add_run(
+                    "give the insights in tabular format with Column name : Company, Unique Conversation Topics be "
+                    "elaborative relating it with the news, (for each row there should be just 1 company name all its "
+                    "unique conversation should be there beside it in the Unique Conversation Topics column) Give one "
+                    "elaborative paragraph before creating a table."
+                )
+
+                # ── Prompt 6 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "6) Reputational Risks for Client - ", bold=True)
+                p.add_run("What is the online news media saying about ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(" from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run("? Give five or more critiques.")
+
+                # ── Prompt 7 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "7) Reputational Risks for Industry - ", bold=True)
+                p.add_run("What is the online news media saying about ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run("? Give five or more critiques.")
+
+                # ── Prompt 8 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "8) Industry Snapshot - ", bold=True)
+                p.add_run("What is the online news media conversation in the ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(
+                    " and identify the companies who are a part of these conversations. ("
+                )
+                r = p.add_run("Note : "); r.bold = True
+                p.add_run(
+                    "give the insights in tabular format and be elaborative relating it with the news, give company "
+                    "wise insight for this, don't put more than 1 company in one row) Give one elaborative paragraph "
+                    "before creating a table. You can also consider companies who are not the competitors but are "
+                    "present online news media conversation in the "
+                )
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry.")
+
+                # ── Prompt 9 ──────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "9) Publications writing on Industry – ", bold=True)
+                p.add_run("Which Indian publications (min 3) have frequently written on ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(" and what are the conversations about the ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry AND which ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" companies have been mentioned by them?")
+
+                # ── Prompt 10 ─────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "10) Journalist writing on Industry – ", bold=True)
+                p.add_run("Which Indian journalists name (min 3) have (mention their Publication name too) frequently written on ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry from ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run(" and what are the conversations about the ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" industry AND which ")
+                k_add_run(p, k_ind, INDUSTRY_COLOR)
+                p.add_run(" companies have been mentioned by them?")
+
+                # ── Prompt 11 ─────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                k_add_run(p, "11) X Insights - ", bold=True)
+                p.add_run("What is being said on Twitter X about ")
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(" between ")
+                k_add_run(p, k_s, DATE_COLOR)
+                p.add_run(" to ")
+                k_add_run(p, k_e, DATE_COLOR)
+                p.add_run("? (")
+                r = p.add_run("Note : "); r.bold = True
+                p.add_run(
+                    "Please be very much elaborative, should be majorly on users conversation around "
+                )
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(
+                    ", if possible highlight the user whose content about "
+                )
+                k_add_run(p, k_c, CLIENT_COLOR)
+                p.add_run(
+                    " has larger influence among the twitter audience and give breakdown of Positive Discussions, "
+                    "Criticisms and Complaints, Neutral/Informational Mentions, and highlight it, please be as "
+                    "elaborative as possible)"
+                )
+
+                # ── Final NOTE ────────────────────────────────────────────
+                p = k_doc.add_paragraph()
+                r = p.add_run("NOTE : "); r.bold = True
+                p.add_run("Don't provide insight for prompt 3")
+
+                # ── Save & download ───────────────────────────────────────
+                k_grok_buffer = io.BytesIO()
+                k_doc.save(k_grok_buffer)
+                k_grok_buffer.seek(0)
+                k_grok_b64 = base64.b64encode(k_grok_buffer.read()).decode()
+                k_grok_href = (
+                    f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;'
+                    f'base64,{k_grok_b64}" download="Kalki_Grok_Prompts_{k_c}.docx">'
+                    f'Download Kalki Grok Prompts (.docx)</a>'
+                )
+                st.sidebar.markdown(k_grok_href, unsafe_allow_html=True)
+                # ── Build presentation ────────────────────────────────
 if date_selected and industry_provided :# File Upload Section
     st.sidebar.write("## Upload an Online or Print file for tables")
     file = st.sidebar.file_uploader("Upload Data File (Excel or CSV)", type=["xlsx", "csv"])
@@ -848,7 +2100,7 @@ if date_selected and industry_provided :# File Upload Section
             # st.write("## Data Preview")
             # st.write(data)
             # Data preprocessing
-            data.drop(columns=data.columns[20:], axis=1, inplace=True)
+            data.drop(columns =data.columns[20:], inplace=True)
             data = data.rename({'Influencer': 'Journalist'}, axis=1)
         # data.drop_duplicates(subset=['Date', 'Entity', 'Headline', 'Publication Name'], keep='first', inplace=True)
         # data.drop_duplicates(subset=['Date', 'Entity', 'Opening Text', 'Publication Name'], keep='first', inplace=True, ignore_index=True)
@@ -945,7 +2197,7 @@ if date_selected and industry_provided :# File Upload Section
         #Publication Name
             finaldata_non_exploded = finaldata.copy()
             finaldata['Journalist'] = (finaldata['Journalist'].astype(str).str.split(',').apply(lambda x: [j.strip() for j in x]))
-            finaldata = finaldata.explode('Journalist')
+            finaldata = finaldata.explode('Journalist').reset_index(drop=True)
     
             jr_tab = pd.crosstab(finaldata['Journalist'], finaldata['Entity'])
             jr_tab = jr_tab.reset_index(level=0)
@@ -2392,8 +3644,8 @@ News search: All Articles: entity mentioned at least once in the article"""
                 add_run(p, "Dates, ", DATE_COLOR, bold=True)
                 add_run(p, "Competitor name, ", COMPETITOR_COLOR, bold=True)
                 add_run(p, "Industry name, ", INDUSTRY_COLOR, bold=True)
-                add_run(p, "Publication Name with limited mentions on Client, ", PUB_COLOR, bold=True)
-                add_run(p, "Journalist Name with limited mentions on Client", JOURNALIST_COLOR, bold=True)
+                add_run(p, "Publications writing on Industry", PUB_COLOR, bold=True)
+                add_run(p, "Journalists writing on Industry", JOURNALIST_COLOR, bold=True)
 
                 p = doc.add_paragraph()
                 p.add_run("I work in Media Research Team at a PR Company, I will be sharing the below Qualitative insights with the PR professionals. Please keep this in mind and provide insights accordingly.")         
@@ -2599,7 +3851,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 # === PROMPT 10 ===
                 p = doc.add_paragraph()
                 add_run(p, "10) Journalist writing on Industry – ", bold=True)
-                add_run(p, "Which Indian journalists (min 3) have (mention their Publication name too) frequently written on ")
+                add_run(p, "Which Indian journalists name (min 3) have (mention their Publication name too) frequently written on ")
                 add_run(p, ind, INDUSTRY_COLOR)
                 add_run(p, " industry from ")
                 add_run(p, s, DATE_COLOR)
@@ -2823,7 +4075,7 @@ if uploaded_docx is not None:
                 
                 FONT_HEADING = 18
                 FONT_COMPETITOR = 22
-                FONT_NORMAL = 16
+                FONT_NORMAL = 14
                 
                 # =====================================================================
                 
@@ -2962,7 +4214,7 @@ if uploaded_docx is not None:
                     lines = section["body"]
                     
                     is_competitor_section = "competitor" in title.lower()
-                    max_slides = 999 if is_competitor_section else 3
+                    max_slides = 999 if is_competitor_section else 5
                     
                     current_slide_idx = 1
                     current_y_offset = 0
@@ -2979,7 +4231,8 @@ if uploaded_docx is not None:
                         tb = slide.shapes.add_textbox(Inches(0.4), HEADER_TOP, SLIDE_WIDTH - Inches(0.8), HEADER_HEIGHT)
                         p = tb.text_frame.paragraphs[0]
                         p.text = title_text
-                        p.font.size = Pt(26)
+                        p.font.name = 'Calibri (Headings)'
+                        p.font.size = Pt(24)
                         p.font.color.rgb = ORANGE
                         p.font.bold = True
                         p.alignment = PP_ALIGN.CENTER
@@ -3087,6 +4340,7 @@ if uploaded_docx is not None:
                         p = tf.add_paragraph()
                         p.text = clean_text
                         p.word_wrap = True
+                        p.font.name = 'Calibri'
                         p.font.size = Pt(f_size)
                         
                         if is_comp:
@@ -3183,7 +4437,12 @@ if file and not file1:
         return text
 
     # Cleaning the text in the Headline column
-    data['Cleaned_Headline'] = data['Headline'].apply(clean)
+    data['Cleaned_Headline'] = (
+    data['Headline']
+    .fillna('')                    # Replace NaN with empty string
+    .astype(str)                   # Ensure all are strings
+    .apply(clean)
+)
 
     # Define a function to clean the text (more thorough)
     def cleaned(text):
@@ -3207,10 +4466,32 @@ if file and not file1:
         return " ".join(filtered_tokens)
 
     # Cleaning the text in the review column
-    data['Text'] = data['Headline'].fillna('').astype(str).str.cat(
-        [data['Opening Text'].fillna('').astype(str), data['Hit Sentence'].fillna('').astype(str)],
-        sep=' '
-    )
+    # Full version with str.cat()
+    if {'Headline', 'Opening Text', 'Hit Sentence'}.issubset(data.columns):
+        data['Text'] = (
+            data['Headline']
+            .fillna('')
+            .astype(str)
+            .str.cat(
+                [data['Opening Text'].fillna('').astype(str),
+                 data['Hit Sentence'].fillna('').astype(str)],
+                sep=' '
+            )
+        )
+
+    # Fallback version
+    else:
+        data['Text'] = (
+            data['Headline']
+            .fillna('')
+            .astype(str)
+            .str.cat(
+                data.get('Summary', pd.Series('')).fillna('').astype(str),
+                sep=' '
+            )
+        )
+
+    data['Text'] = data['Text'].str.replace(r'\s+', ' ', regex=True).str.strip()
     data['Text'] = data['Text'].apply(cleaned)
     data.head()    
 
@@ -3339,11 +4620,38 @@ elif file1 and not file:
         return text
 
     # Cleaning the text in the Headline column
-    data['Cleaned_Headline'] = data['Headline'].apply(clean)
-    data['Text'] = data['Headline'].fillna('').astype(str).str.cat(
-        [data['Opening Text'].fillna('').astype(str), data['Hit Sentence'].fillna('').astype(str)],
-        sep=' '
-    )
+    data['Cleaned_Headline'] = (
+    data['Headline']
+    .fillna('')                    # Replace NaN with empty string
+    .astype(str)                   # Ensure all are strings
+    .apply(clean)
+)
+    # Full version with str.cat()
+    if {'Headline', 'Opening Text', 'Hit Sentence'}.issubset(data.columns):
+        data['Text'] = (
+            data['Headline']
+            .fillna('')
+            .astype(str)
+            .str.cat(
+                [data['Opening Text'].fillna('').astype(str),
+                 data['Hit Sentence'].fillna('').astype(str)],
+                sep=' '
+            )
+        )
+
+    # Fallback version
+    else:
+        data['Text'] = (
+            data['Headline']
+            .fillna('')
+            .astype(str)
+            .str.cat(
+                data.get('Summary', pd.Series('')).fillna('').astype(str),
+                sep=' '
+            )
+        )
+
+    data['Text'] = data['Text'].str.replace(r'\s+', ' ', regex=True).str.strip()
 
     # Define a function to clean the text (more thorough)
     def cleaned(text):
@@ -3534,7 +4842,12 @@ elif file and file1:
             text = re.sub('[,\.!?]', ' ', text)
             return text
 
-        data['Cleaned_Headline'] = data['Headline'].apply(clean)
+        data['Cleaned_Headline'] = (
+    data['Headline']
+    .fillna('')                    # Replace NaN with empty string
+    .astype(str)                   # Ensure all are strings
+    .apply(clean)
+)
     
         # Define a function to clean the text (more thorough)
         def cleaned(text):
@@ -3558,10 +4871,32 @@ elif file and file1:
             return " ".join(filtered_tokens)
     
         # Cleaning the text in the review column
-        data['Text'] = data['Headline'].fillna('').astype(str).str.cat(
-            [data['Opening Text'].fillna('').astype(str), data['Hit Sentence'].fillna('').astype(str)],
-            sep=' '
-        )
+        # Full version with str.cat()
+        if {'Headline', 'Opening Text', 'Hit Sentence'}.issubset(data.columns):
+            data['Text'] = (
+                data['Headline']
+                .fillna('')
+                .astype(str)
+                .str.cat(
+                    [data['Opening Text'].fillna('').astype(str),
+                     data['Hit Sentence'].fillna('').astype(str)],
+                    sep=' '
+                )
+            )
+
+        # Fallback version
+        else:
+            data['Text'] = (
+                data['Headline']
+                .fillna('')
+                .astype(str)
+                .str.cat(
+                    data.get('Summary', pd.Series('')).fillna('').astype(str),
+                    sep=' '
+                )
+            )
+
+        data['Text'] = data['Text'].str.replace(r'\s+', ' ', regex=True).str.strip()
         data['Text'] = data['Text'].apply(cleaned)
         data.head()    
     
@@ -3687,11 +5022,38 @@ elif file and file1:
             return text
     
         # Cleaning the text in the Headline column
-        data['Cleaned_Headline'] = data['Headline'].apply(clean)
-        data['Text'] = data['Headline'].fillna('').astype(str).str.cat(
-            [data['Opening Text'].fillna('').astype(str), data['Hit Sentence'].fillna('').astype(str)],
-            sep=' '
-        )
+        data['Cleaned_Headline'] = (
+    data['Headline']
+    .fillna('')                    # Replace NaN with empty string
+    .astype(str)                   # Ensure all are strings
+    .apply(clean)
+)
+        # Full version with str.cat()
+        if {'Headline', 'Opening Text', 'Hit Sentence'}.issubset(data.columns):
+            data['Text'] = (
+                data['Headline']
+                .fillna('')
+                .astype(str)
+                .str.cat(
+                    [data['Opening Text'].fillna('').astype(str),
+                     data['Hit Sentence'].fillna('').astype(str)],
+                    sep=' '
+                )
+            )
+
+        # Fallback version
+        else:
+            data['Text'] = (
+                data['Headline']
+                .fillna('')
+                .astype(str)
+                .str.cat(
+                    data.get('Summary', pd.Series('')).fillna('').astype(str),
+                    sep=' '
+                )
+            )
+
+        data['Text'] = data['Text'].str.replace(r'\s+', ' ', regex=True).str.strip()
     
         # Define a function to clean the text (more thorough)
         def cleaned(text):
