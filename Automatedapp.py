@@ -1288,6 +1288,8 @@ if date_selected and industry_provided :
                         ].reset_index(drop=True)
 
                         k_sheet_name = str(k_entity_name)[:31]
+                        if "Date" in k_entity_df.columns:
+                            k_entity_df["Date"] = pd.to_datetime(k_entity_df["Date"]).dt.date
                         k_entity_df.to_excel(
                             k_writer, sheet_name=k_sheet_name, index=False
                         )
