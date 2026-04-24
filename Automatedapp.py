@@ -1189,7 +1189,7 @@ if date_selected and industry_provided :
                 key="kalki_preview_select",
             )
             st.dataframe(k_preview_options[k_sel])
-     
+            st.sidebar.write("## Download Options")
             # ── 10. DOWNLOAD COMBINED EXCEL ───────────────────────────────
             st.sidebar.write("## Download Kalki Combined Excel")
             kalki_file_name = st.sidebar.text_input(
@@ -2986,7 +2986,7 @@ if date_selected and industry_provided :# File Upload Section
             # Sidebar for download options
             st.sidebar.write("## Download Options")
             
-            st.sidebar.write("## Download Report and Entity Sheets in Single Excel workbook")
+            st.sidebar.write("## Download Combined Excel")
             file_name_all = st.sidebar.text_input("Enter file name for Combined Excel", "Combined Excel.xlsx")
             if st.sidebar.button("Download Combined Excel"):
                 dfs = [Entity_SOV3, sov_dt11, pubs_table2O, Unique_Articles2O, PType_Entity, Jour_Comp, Jour_Client]
