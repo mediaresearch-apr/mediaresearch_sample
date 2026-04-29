@@ -480,25 +480,18 @@ def add_styling_to_worksheet(ws, df, start_row, comment, highlight_last_row=Fals
             cell.font = Font(name="Gill Sans MT", bold=True)
 def kalki_multiple_dfs(df_list, sheet_name, file_name, comments,
                        entity_info, highlight_refs=None):
-    """
-    Kalki version of multiple_dfs().
- 
-    Instead of checking global variable identity (df is Entity_SOV3),
-    the caller passes highlight_refs – a list of the exact DataFrame
-    objects whose last row should be bolded.  We compare with id() so
-    it works entirely within local scope, no globals needed.
- 
-    file_name may be a BytesIO object (same as openpyxl wb.save()).
-    """
     wb = Workbook()
     ws = wb.active
     current_row = 1
     add_entity_info(ws, entity_info, current_row)
     current_row += 6
- 
+
     ref_ids = set(id(r) for r in (highlight_refs or []))
- 
+
     for df, comment in zip(df_list, comments):
+        # ── GUARD: skip empty DataFrames ──────────────────────────────
+        if df.empty:
+            continue
         # Bold last row if caller flagged this df, OR if last row has "total"
         highlight = (id(df) in ref_ids) or any(
             "total" in str(val).lower() for val in df.iloc[-1]
@@ -506,29 +499,26 @@ def kalki_multiple_dfs(df_list, sheet_name, file_name, comments,
         add_styling_to_worksheet(ws, df, current_row, comment,
                                  highlight_last_row=highlight)
         current_row += len(df) + 4
- 
+
     wb.save(file_name)
- 
- 
+
+
 def kalki_multiple_dfs1(df_list, sheet_name, wb, comments,
                         highlight_refs=None):
-    """
-    Kalki version of multiple_dfs1().
- 
-    Same pattern: caller passes highlight_refs explicitly;
-    last-row bolding is checked with id(), not global variable names.
-    """
     ws = wb.create_sheet(title=sheet_name)
     current_row = 3
     ref_ids = set(id(r) for r in (highlight_refs or []))
- 
+
     for df, comment in zip(df_list, comments):
+        # ── GUARD: skip empty DataFrames ──────────────────────────────
+        if df.empty:
+            continue
         highlight = (id(df) in ref_ids) or any(
             "total" in str(val).lower() for val in df.iloc[-1]
         )
         add_styling_to_worksheet(ws, df, current_row, comment,
                                  highlight_last_row=highlight)
-        current_row += len(df) + 4            
+        current_row += len(df) + 4
 def multiple_dfs(df_list, sheet_name, file_name, comments, entity_info):
     wb = Workbook()
     ws = wb.active
@@ -998,16 +988,17 @@ if date_selected and industry_provided :
      
             # De-duplicate using whichever key columns exist
             for _subset in [
-                ["Date", "Entity", "Headline", "Publication Name"],
-                ["Date", "Entity", "Opening Text", "Publication Name"],
-                ["Date", "Entity", "Hit Sentence", "Publication Name"],
-            ]:
+    ["Date", "Entity", "Title", "Publication"],
+    ["Date", "Entity", "Headline", "Publication Name"],  # keep as fallback
+]:
                 if set(_subset).issubset(kdata.columns):
                     kdata.drop_duplicates(subset=_subset, keep="first",
                                           inplace=True, ignore_index=True)
      
             kfinaldata = kdata.copy()
             kfinaldata["Date"] = pd.to_datetime(kfinaldata["Date"]).dt.normalize()
+            # For unique article counts (Total Unique Articles + Client %)
+           
      
             # ── 2. CLIENT / COMPETITOR DETECTION ─────────────────────────
             k_client_col = next(
@@ -1023,13 +1014,17 @@ if date_selected and industry_provided :
                 aggfunc="count",
             ).round(0)
             k_sov_raw["% "] = (
-                (k_sov_raw["News Count"] / k_sov_raw["News Count"].sum()) * 100
-            ).round(0)
+    (k_sov_raw["News Count"] / k_sov_raw["News Count"].sum()) * 100
+).round(0)
             k_sov_raw = k_sov_raw.sort_values("News Count", ascending=False)
             k_sov_raw.loc["Total"] = k_sov_raw.sum(numeric_only=True)
-     
+
             k_Entity_SOV3 = pd.DataFrame(k_sov_raw.to_records()).round()
             k_Entity_SOV3["News Count"] = k_Entity_SOV3["News Count"].astype(int)
+
+            # ── Fix: set Total % row to exactly 100% instead of summed rounded values ──
+            k_Entity_SOV3.loc[k_Entity_SOV3["Entity"] == "Total", "% "] = 100
+
             k_Entity_SOV3["% "] = k_Entity_SOV3["% "].astype(int).astype(str) + "%"
      
             k_sov_order = k_Entity_SOV3["Entity"].tolist()
@@ -1067,107 +1062,204 @@ if date_selected and industry_provided :
                 kfinaldata = kfinaldata.rename(
                     columns={"Publication Name": "Publication"}
                 )
-     
-            k_pub_cross = pd.crosstab(
-                kfinaldata_non_exploded["Publication"],
-                kfinaldata_non_exploded["Entity"],
-            ).reset_index()
-     
-            k_pub_total = (
-                kfinaldata_non_exploded["Publication"]
+            kfinaldata_unique = kfinaldata.copy()
+
+            # Apply ALL matching dedup subsets, not just the first one
+            for _usubset in [
+                ["Date", "Title", "Publication", "Author"],
+                ["Date", "Headline", "Publication", "Author"],
+                ["Date", "Title", "Publication Name", "Author"],      # fallback if rename didn't apply
+                ["Date", "Headline", "Publication Name", "Author"],   # fallback
+            ]:
+                if set(_usubset).issubset(kfinaldata_unique.columns):
+                    kfinaldata_unique.drop_duplicates(
+                        subset=_usubset, keep="first", inplace=True, ignore_index=True
+                    )
+                    break
+            # Total UNIQUE articles per publication
+            k_pub_unique_total = (
+                kfinaldata_unique["Publication"]
                 .value_counts()
                 .reset_index()
             )
-            k_pub_total.columns = ["Publication", "Total"]
-     
-            k_pubs_table = k_pub_total.merge(k_pub_cross, on="Publication", how="left")
+            k_pub_unique_total.columns = ["Publication", "Total Unique Articles"]
+
+            # Entity-wise TOTAL articles (not unique)
+            k_pub_cross = pd.crosstab(
+                kfinaldata["Publication"],
+                kfinaldata["Entity"],
+            ).reset_index()
+
+            k_pubs_table = k_pub_unique_total.merge(k_pub_cross, on="Publication", how="left")
+
             k_pub_cols = (
                 ["Publication", k_client_coldt]
                 + [e for e in k_sov_order_no_client if e in k_pubs_table.columns]
-                + ["Total"]
+                + ["Total Unique Articles"]
             )
             k_pubs_table = k_pubs_table[k_pub_cols]
-            k_pubs_table = k_pubs_table.sort_values("Total", ascending=False).round()
+            k_pubs_table = k_pubs_table.sort_values("Total Unique Articles", ascending=False).round()
             k_pubs_table.loc["Total"] = k_pubs_table.sum(numeric_only=True)
             k_pubs_table["Publication"] = k_pubs_table["Publication"].fillna("Total")
             _k_num_pub = k_pubs_table.select_dtypes(include=["number"]).columns
             k_pubs_table[_k_num_pub] = k_pubs_table[_k_num_pub].astype(int)
-     
+
+            # Add Client %
+            k_pubs_table["Client %"] = (
+                (k_pubs_table[k_client_coldt] / k_pubs_table["Total Unique Articles"]) * 100
+            ).round().astype(int)
+
             k_pubs_table20 = k_pubs_table.head(20).copy()
      
             # ── 6. AUTHOR TABLE ───────────────────────────────────────────
             # Column name: "Author"  |  Explode on comma  |  Total articles  |  No Client %
-            k_exploded = kfinaldata.copy()
+            # Explode on Author for TOTAL article counts (entity-wise columns)
+            k_exploded = kfinaldata.copy()          # ← already correct, kfinaldata is the SOV source
             k_exploded["Author"] = (
-                k_exploded["Author"]
-                .astype(str)
-                .str.split(",")
+                k_exploded["Author"].astype(str).str.split(",")
                 .apply(lambda lst: [j.strip() for j in lst])
             )
             k_exploded = k_exploded.explode("Author").reset_index(drop=True)
-     
-            k_jr_cross = pd.crosstab(
-                k_exploded["Author"], k_exploded["Entity"]
-            ).reset_index()
-     
+
+            k_jr_cross = pd.crosstab(k_exploded["Author"], k_exploded["Entity"]).reset_index()
+
+            # Explode on Author for UNIQUE article counts (Total Unique Articles column)
+            k_exploded_unique = kfinaldata_unique.copy()
+            k_exploded_unique["Author"] = (
+                k_exploded_unique["Author"].astype(str).str.split(",")
+                .apply(lambda lst: [j.strip() for j in lst])
+            )
+            k_exploded_unique = k_exploded_unique.explode("Author").reset_index(drop=True)
+
+            k_unique_total = (
+                k_exploded_unique["Author"].value_counts().reset_index()
+            )
+            k_unique_total.columns = ["Author", "Total Unique Articles"]
+
+            # Publication lookup (first occurrence per author)
             k_pub_for_jour = (
                 k_exploded[["Author", "Publication"]]
                 .drop_duplicates(subset=["Author"], keep="first")
             )
+
             k_Jour_raw = pd.merge(k_jr_cross, k_pub_for_jour, on="Author", how="left")
-     
-            _k_num_jour = k_Jour_raw.select_dtypes(include="number").columns
-            k_Jour_raw["Total"] = k_Jour_raw[_k_num_jour].sum(axis=1)
-            k_Jour_raw = k_Jour_raw.sort_values("Total", ascending=False).round()
-     
-            # Bureau News pushed to bottom, then GrandTotal row appended
+            k_Jour_raw = pd.merge(k_Jour_raw, k_unique_total, on="Author", how="left")
+            k_Jour_raw["Total Unique Articles"] = k_Jour_raw["Total Unique Articles"].fillna(0).astype(int)
+
+            # Bureau News to bottom, then GrandTotal
             k_bn = k_Jour_raw[k_Jour_raw["Author"] == "Bureau News"]
             k_Jour_raw = k_Jour_raw[k_Jour_raw["Author"] != "Bureau News"]
             k_Jour_raw = pd.concat([k_Jour_raw, k_bn], ignore_index=True)
             k_Jour_raw.loc["GrandTotal"] = k_Jour_raw.sum(numeric_only=True)
-     
+
             _k_int_cols = k_Jour_raw.columns.difference(["Author", "Publication"])
             k_Jour_raw[_k_int_cols] = k_Jour_raw[_k_int_cols].astype(int)
             k_Jour_raw.insert(1, "Publication", k_Jour_raw.pop("Publication"))
-     
+
+            # Add Client %
+            k_Jour_raw["Client %"] = (
+                (k_Jour_raw[k_client_coldt] / k_Jour_raw["Total Unique Articles"]) * 100
+            ).round().fillna(0).astype(int)
+
             k_jour_cols = (
                 ["Author", "Publication", k_client_coldt]
                 + [e for e in k_sov_order_no_client if e in k_Jour_raw.columns]
-                + ["Total"]
+                + ["Total Unique Articles", "Client %"]
             )
-            k_Jour_table = k_Jour_raw[k_jour_cols]
+            k_Jour_table = k_Jour_raw[k_jour_cols].copy()
+
+            # ── Sort by Total Unique Articles descending (exclude GrandTotal row) ──
+            # REPLACE WITH:
+            _k_gt_row = k_Jour_table.loc[k_Jour_table.index == "GrandTotal"]
+            _k_bn_row = k_Jour_table.loc[
+                k_Jour_table["Author"].astype(str).str.strip().str.lower() == "bureau news"
+            ]
+            _k_body   = k_Jour_table.loc[
+                (k_Jour_table.index != "GrandTotal") &
+                (~k_Jour_table["Author"].astype(str).str.strip().str.lower().isin(["bureau news"]))
+            ]
+            _k_body   = _k_body.sort_values("Total Unique Articles", ascending=False)
+            k_Jour_table = pd.concat([_k_body, _k_bn_row, _k_gt_row])
+            # ── FIX: Set Author label on GrandTotal row then override entity columns ──
+            # The .loc["GrandTotal"] = sum() sets index label but NOT Author column value
+            # So we must explicitly set it first, then find it by index label
+            k_Jour_table.loc["GrandTotal", "Author"] = "GrandTotal"
+
+            # Now build SOV lookup and override entity columns in GrandTotal row
+            k_sov_lookup = dict(zip(k_Entity_SOV3["Entity"], k_Entity_SOV3["News Count"]))
+
+            # Override each entity column with exact SOV count
+            for _col in k_Jour_table.columns:
+                if _col in k_sov_lookup and _col not in ["Total Unique Articles", "Client %", "Author", "Publication"]:
+                    k_Jour_table.loc["GrandTotal", _col] = int(k_sov_lookup[_col])
+
+            # Set Total Unique Articles for GrandTotal = total unique articles in dataset
+            _k_grand_unique_total = int(
+    k_Jour_table.loc[
+        ~k_Jour_table.index.isin(["GrandTotal"])
+        & ~k_Jour_table["Author"].astype(str).str.strip().str.lower().isin(["grandtotal"])
+    , "Total Unique Articles"]
+    .sum()
+)
+            k_Jour_table.loc["GrandTotal", "Total Unique Articles"] = _k_grand_unique_total
+
+            # Recalculate Client % for GrandTotal
+            _grand_client_val = k_Jour_table.loc["GrandTotal", k_client_coldt]
+            if _k_grand_unique_total > 0:
+                k_Jour_table.loc["GrandTotal", "Client %"] = int(
+                    round((_grand_client_val / _k_grand_unique_total) * 100)
+                )
+            else:
+                k_Jour_table.loc["GrandTotal", "Client %"] = 0
+
+            # Refresh top-20 AFTER the fix
             k_Jour_table20 = k_Jour_table.head(20).copy()
-     
+            # ── FIX: Override GrandTotal row entity columns to match SOV exactly ──
+            
+           
             # ── 7. JOURN ON COMP, NOT CLIENT ─────────────────────────────
             k_client_cols_list = [
-                c for c in k_Jour_table.columns if c.startswith("Client-")
-            ]
+    c for c in k_Jour_table.columns if c.startswith("Client-")
+]
             k_comp_cols_list = [
                 c for c in k_Jour_table.columns
-                if c not in k_client_cols_list
-                and c not in ["Author", "Publication", "Total"]
+                if not c.startswith("Client-")
+                and c not in ["Author", "Publication", "Total",
+                              "Total Unique Articles", "Client %"]
+                and k_Jour_table[c].dtype in ['int64', 'float64']  # only real entity columns
             ]
      
             k_Jour_Comp = k_Jour_table[
-                k_Jour_table[k_client_cols_list].eq(0).any(axis=1)
-            ].head(10).copy()
+    k_Jour_table[k_client_cols_list].eq(0).any(axis=1)
+    & ~k_Jour_table["Author"].astype(str).str.strip().str.lower().isin(["grandtotal", "bureau news"])
+].sort_values("Total Unique Articles", ascending=False).head(10).copy()
             k_jcomp_cols = (
-                ["Author", "Publication", k_client_coldt]
-                + [e for e in k_sov_order_no_client if e in k_Jour_Comp.columns]
-                + ["Total"]
-            )
+    ["Author", "Publication", k_client_coldt]
+    + [e for e in k_sov_order_no_client if e in k_Jour_Comp.columns]
+    + ["Total Unique Articles"]   # ← add this
+)
             k_Jour_Comp = k_Jour_Comp[k_jcomp_cols]
      
             # ── 8. JOURN ON CLIENT, NOT COMP ─────────────────────────────
-            k_Jour_Client = k_Jour_table[
-                (k_Jour_table[k_client_cols_list].gt(0).any(axis=1))
-                & (k_Jour_table[k_comp_cols_list].eq(0).all(axis=1))
+            k_Jour_filtered = k_Jour_table[
+    ~k_Jour_table["Author"].astype(str).str.strip().str.lower().isin(
+        ["bureau news", "grandtotal", "total"]
+    )
+]
+
+            k_Jour_Client = k_Jour_filtered[
+                (k_Jour_filtered[k_client_cols_list].gt(0).any(axis=1))
+                & (k_Jour_filtered[k_comp_cols_list].eq(0).all(axis=1))
             ].head(10).copy()
+
             k_jclient_cols = (
                 ["Author", "Publication", k_client_coldt]
                 + [e for e in k_sov_order_no_client if e in k_Jour_Client.columns]
             )
             k_Jour_Client = k_Jour_Client[k_jclient_cols]
+            
+
+            #k_Jour_Client = k_Jour_Client[k_jclient_cols]
             k_Jour_table_display   = k_Jour_table.rename(columns={"Author": "Journalist"})
             k_Jour_table20_display = k_Jour_table20.rename(columns={"Author": "Journalist"})
             k_Jour_Comp_display    = k_Jour_Comp.rename(columns={"Author": "Journalist"})
@@ -1222,8 +1314,8 @@ if date_selected and industry_provided :
                     "Journ-on Client, not Comp",
                 ]
                 # ── Rename "Author" → "Journalist" in all display copies ─────
-               
 
+                k_Jour_table20_report = k_Jour_table20_display.reset_index(drop=True).copy()
                 # DataFrames for the Report sheet (top-20 slices, renamed)
                 k_dfs_report = [
                     k_Entity_SOV3,
@@ -1257,7 +1349,27 @@ if date_selected and industry_provided :
                 # ── Add All Pub-Jour sheet ────────────────────────────────
                 k_pubs_all = k_pubs_table.copy()
                 k_pubs_all.at[k_pubs_all.index[-1], "Publication"] = "Total"
-     
+                k_Jour_table_display.loc[k_Jour_table_display['Journalist'] == 'Bureau News', 'Publication'] = 'Across Publications'
+
+                # ── Separate GrandTotal row before sorting ────────────────────────
+                # REPLACE WITH:
+                _k_all_gt   = k_Jour_table_display[
+                    k_Jour_table_display["Journalist"].astype(str).str.strip().str.lower() == "grandtotal"
+                ]
+                _k_all_bn   = k_Jour_table_display[
+                    k_Jour_table_display["Journalist"].astype(str).str.strip().str.lower() == "bureau news"
+                ]
+                _k_all_body = k_Jour_table_display[
+                    ~k_Jour_table_display["Journalist"].astype(str).str.strip().str.lower().isin(
+                        ["grandtotal", "bureau news"]
+                    )
+                ]
+                _k_all_body = _k_all_body.sort_values("Total Unique Articles", ascending=False)
+                k_Jour_all_display = pd.concat([_k_all_body, _k_all_bn, _k_all_gt]).reset_index(drop=True).copy()
+
+                # Safety check — ensure GrandTotal label is present on last row
+                if str(k_Jour_all_display.iloc[-1]["Journalist"]).strip().lower() != "grandtotal":
+                    k_Jour_all_display.iloc[-1, k_Jour_all_display.columns.get_loc("Journalist")] = "GrandTotal"
                 k_dfs_all      = [k_pubs_all,            k_Jour_table_display]
                 k_comments_all = ["Publication Table",   "Journalist Table"]
                 k_highlight_all = [k_pubs_all,           k_Jour_table_display]
@@ -1491,93 +1603,7 @@ if date_selected and industry_provided :
                     if os.path.exists(img_path):
                         slide.shapes.add_picture(img_path, left_logo, top_logo, height=Inches(1))
 
-                # ── Extract key stats ───────────────────────────────────────────
-                k_total_news = int(k_Entity_SOV3.loc[k_Entity_SOV3["Entity"] == "Total", "News Count"].values[0]) if "Total" in k_Entity_SOV3["Entity"].values else 0
-                k_client_sov_count = int(k_Entity_SOV3.loc[k_Entity_SOV3["Entity"] == k_client_col, "News Count"].values[0]) if k_client_col in k_Entity_SOV3["Entity"].values else 0
-
-                k_pubs_trim = k_pubs_table.drop(k_pubs_table.index[-1]).copy()
-                k_pubs_trim['Publication'] = k_pubs_trim['Publication'].fillna('Unknown').astype(str).str.strip()
-                k_top1_pub = k_pubs_trim.iloc[0]["Publication"] if len(k_pubs_trim) > 0 else "N/A"
-                k_top1_pub_count = int(k_pubs_trim.iloc[0]["Total"]) if len(k_pubs_trim) > 0 else 0
-                k_top2_pub = k_pubs_trim.iloc[1]["Publication"] if len(k_pubs_trim) > 1 else "N/A"
-                k_top2_pub_count = int(k_pubs_trim.iloc[1]["Total"]) if len(k_pubs_trim) > 1 else 0
-                k_top3_pub = k_pubs_trim.iloc[2]["Publication"] if len(k_pubs_trim) > 2 else "N/A"
-                k_top3_pub_count = int(k_pubs_trim.iloc[2]["Total"]) if len(k_pubs_trim) > 2 else 0
-
-                k_client_pubs = k_pubs_trim[["Publication", k_client_col]].copy()
-                k_client_pubs = k_client_pubs.sort_values(by=k_client_col, ascending=False)
-                k_topc1_pub = k_client_pubs.iloc[0]["Publication"] if len(k_client_pubs) > 0 else "N/A"
-                k_topc1_count = int(k_client_pubs.iloc[0][k_client_col]) if len(k_client_pubs) > 0 else 0
-                k_topc2_pub = k_client_pubs.iloc[1]["Publication"] if len(k_client_pubs) > 1 else "N/A"
-                k_topc2_count = int(k_client_pubs.iloc[1][k_client_col]) if len(k_client_pubs) > 1 else 0
-                k_topc3_pub = k_client_pubs.iloc[2]["Publication"] if len(k_client_pubs) > 2 else "N/A"
-                k_topc3_count = int(k_client_pubs.iloc[2][k_client_col]) if len(k_client_pubs) > 2 else 0
-
-                k_top10_sum = int(k_pubs_trim[k_client_col].sort_values(ascending=False).head(10).sum())
-                k_top10_perc = int(round((k_top10_sum / k_client_sov_count) * 100)) if k_client_sov_count > 0 else 0
-
-                k_jour_trim = k_Jour_table.copy()
-                k_jour_trim = k_jour_trim[~k_jour_trim["Author"].astype(str).str.strip().str.lower().isin(["grandtotal", "bureau news"])]
-                k_topj1_name = k_jour_trim.iloc[0]["Author"] if len(k_jour_trim) > 0 else "N/A"
-                k_topj1_pub  = k_jour_trim.iloc[0]["Publication"] if len(k_jour_trim) > 0 else "N/A"
-                k_topj1_count = int(k_jour_trim.iloc[0]["Total"]) if len(k_jour_trim) > 0 else 0
-                k_topj2_name = k_jour_trim.iloc[1]["Author"] if len(k_jour_trim) > 1 else "N/A"
-                k_topj2_pub  = k_jour_trim.iloc[1]["Publication"] if len(k_jour_trim) > 1 else "N/A"
-                k_topj2_count = int(k_jour_trim.iloc[1]["Total"]) if len(k_jour_trim) > 1 else 0
-                k_topj3_name = k_jour_trim.iloc[2]["Author"] if len(k_jour_trim) > 2 else "N/A"
-                k_topj3_pub  = k_jour_trim.iloc[2]["Publication"] if len(k_jour_trim) > 2 else "N/A"
-                k_topj3_count = int(k_jour_trim.iloc[2]["Total"]) if len(k_jour_trim) > 2 else 0
-
-                k_client_col_jour = [c for c in k_Jour_table.columns if c.startswith("Client-")][0]
-                k_jour_client_sorted = k_jour_trim.sort_values(by=k_client_col_jour, ascending=False)
-                k_jc1_name  = k_jour_client_sorted.iloc[0]["Author"] if len(k_jour_client_sorted) > 0 else "N/A"
-                k_jc1_pub   = k_jour_client_sorted.iloc[0]["Publication"] if len(k_jour_client_sorted) > 0 else "N/A"
-                k_jc1_count = int(k_jour_client_sorted.iloc[0][k_client_col_jour]) if len(k_jour_client_sorted) > 0 else 0
-                k_jc2_name  = k_jour_client_sorted.iloc[1]["Author"] if len(k_jour_client_sorted) > 1 else "N/A"
-                k_jc2_pub   = k_jour_client_sorted.iloc[1]["Publication"] if len(k_jour_client_sorted) > 1 else "N/A"
-                k_jc2_count = int(k_jour_client_sorted.iloc[1][k_client_col_jour]) if len(k_jour_client_sorted) > 1 else 0
-                k_jc3_name  = k_jour_client_sorted.iloc[2]["Author"] if len(k_jour_client_sorted) > 2 else "N/A"
-                k_jc3_pub   = k_jour_client_sorted.iloc[2]["Publication"] if len(k_jour_client_sorted) > 2 else "N/A"
-                k_jc3_count = int(k_jour_client_sorted.iloc[2][k_client_col_jour]) if len(k_jour_client_sorted) > 2 else 0
-
-                k_bureau_col = k_Jour_table[k_Jour_table["Author"] == "Bureau News"][k_client_col_jour].values
-                k_bureau_articles = int(k_bureau_col[0]) if len(k_bureau_col) > 0 else 0
-                k_individual_articles = k_client_sov_count - k_bureau_articles
-                k_bureau_pct = int(round((k_bureau_articles / k_client_sov_count) * 100)) if k_client_sov_count > 0 else 0
-                k_individual_pct = 100 - k_bureau_pct
-
-                k_jour_filtered = k_jour_trim[k_jour_trim["Author"] != "Bureau News"]
-                k_total_journalists = len(k_jour_filtered)
-                k_non_zero_journalists = k_jour_filtered[k_jour_filtered[k_client_col_jour] > 0].shape[0]
-                k_articles_for_client = int(k_jour_filtered[k_jour_filtered[k_client_col_jour] > 0][k_client_col_jour].sum())
-                k_client_jour_pct = int(round((k_non_zero_journalists / k_total_journalists) * 100)) if k_total_journalists > 0 else 0
-                k_engage_with = k_total_journalists - k_non_zero_journalists
-
-                k_jcomp1_name  = k_Jour_Comp.iloc[0]["Author"] if len(k_Jour_Comp) > 0 else "N/A"
-                k_jcomp1_pub   = k_Jour_Comp.iloc[0]["Publication"] if len(k_Jour_Comp) > 0 else "N/A"
-                k_jcomp1_count = int(k_Jour_Comp.iloc[0]["Total"]) if len(k_Jour_Comp) > 0 and "Total" in k_Jour_Comp.columns else 0
-                k_jcomp2_name  = k_Jour_Comp.iloc[1]["Author"] if len(k_Jour_Comp) > 1 else "N/A"
-                k_jcomp2_pub   = k_Jour_Comp.iloc[1]["Publication"] if len(k_Jour_Comp) > 1 else "N/A"
-                k_jcomp2_count = int(k_Jour_Comp.iloc[1]["Total"]) if len(k_Jour_Comp) > 1 and "Total" in k_Jour_Comp.columns else 0
-                k_jcomp3_name  = k_Jour_Comp.iloc[2]["Author"] if len(k_Jour_Comp) > 2 else "N/A"
-                k_jcomp3_pub   = k_Jour_Comp.iloc[2]["Publication"] if len(k_Jour_Comp) > 2 else "N/A"
-                k_jcomp3_count = int(k_Jour_Comp.iloc[2]["Total"]) if len(k_Jour_Comp) > 2 and "Total" in k_Jour_Comp.columns else 0
-
-                k_jclient1_name  = k_Jour_Client.iloc[0]["Author"] if len(k_Jour_Client) > 0 else "N/A"
-                k_jclient1_pub   = k_Jour_Client.iloc[0]["Publication"] if len(k_Jour_Client) > 0 else "N/A"
-                k_jclient1_count = int(k_Jour_Client.iloc[0][k_client_col]) if len(k_Jour_Client) > 0 else 0
-                k_jclient2_name  = k_Jour_Client.iloc[1]["Author"] if len(k_Jour_Client) > 1 else "N/A"
-                k_jclient2_pub   = k_Jour_Client.iloc[1]["Publication"] if len(k_Jour_Client) > 1 else "N/A"
-                k_jclient2_count = int(k_Jour_Client.iloc[1][k_client_col]) if len(k_Jour_Client) > 1 else 0
-
-                k_mom_trim = k_sov_dt11[k_sov_dt11["Date"].astype(str) != "Total"].copy()
-                k_mom_sorted = k_mom_trim.sort_values(by=k_client_col, ascending=False) if k_client_col in k_mom_trim.columns else k_mom_trim
-                k_peak_month = str(k_mom_sorted.iloc[0]["Date"]) if len(k_mom_sorted) > 0 else "N/A"
-                k_peak_count = int(k_mom_sorted.iloc[0][k_client_col]) if len(k_mom_sorted) > 0 else 0
-
-                k_cn = k_client_name_clean
-
-                # ── img paths (reuse from Online/Print section) ─────────────────
+                                # ── img paths (reuse from Online/Print section) ─────────────────
                 img_path  = r"New logo snip.png"
                 img_path1 = r"New Templete main slide.png"
 
@@ -1593,7 +1619,7 @@ if date_selected and industry_provided :
                     slide.shapes.add_picture(img_path1, Inches(0), Inches(0), width=k_prs.slide_width, height=k_prs.slide_height)
                 tb = slide.shapes.add_textbox(Inches(1.9), Inches(1.0), Inches(15), Inches(1))
                 tf = tb.text_frame
-                tf.text = f"{k_cn}\nNews Analysis\nBy Media Research & Analytics Team"
+                tf.text = f"{k_client_name_clean}\nNews Analysis\nBy Media Research & Analytics Team"
                 for paragraph in tf.paragraphs:
                     for run in paragraph.runs:
                         run.font.size = Pt(50)
@@ -1625,10 +1651,17 @@ if date_selected and industry_provided :
                 tp.text_frame.paragraphs[0].font.name = 'Gill Sans'
                 src = slide.shapes.add_textbox(Inches(0.6), Inches(3), Inches(10), Inches(1.5))
                 src.text_frame.word_wrap = True
+
                 p_src = src.text_frame.add_paragraph()
                 p_src.text = "Source: (Online) Kalki All publications."
                 p_src.font.size = Pt(24)
                 p_src.font.name = 'Gill Sans'
+
+                # Add this new paragraph
+                p_src2 = src.text_frame.add_paragraph()
+                p_src2.text = "(Print) Factiva, 25 leading publications including Financial and mainline newspapers, Business and General Magazines."
+                p_src2.font.size = Pt(24)
+                p_src2.font.name = 'Gill Sans'
                 ns = slide.shapes.add_textbox(Inches(0.6), Inches(5), Inches(10), Inches(0.75))
                 ns.text_frame.word_wrap = True
                 p_ns = ns.text_frame.add_paragraph()
@@ -1664,31 +1697,21 @@ if date_selected and industry_provided :
                 k_dfs_ppt = [k_Entity_SOV3_ppt, k_sov_dt11_ppt, k_pubs_ppt,
                              k_Jour_ppt, k_Jour_Comp_ppt, k_Jour_Client_ppt]
                 k_table_titles_ppt = [
-                    f'SOV Table of {k_cn} and competition',
-                    f'Month-on-Month Table of {k_cn} and competition',
-                    f'Publication Table on {k_cn} and competition',
-                    f'Journalist writing on {k_cn} and competition',
-                    f'Journalists writing on Comp and not on {k_cn}',
-                    f'Journalists writing on {k_cn} and not on Comp',
+                    f'SOV Table of {k_client_name_clean} and competition',
+                    f'Month-on-Month Table of {k_client_name_clean} and competition',
+                    f'Publication Table on {k_client_name_clean} and competition',
+                    f'Journalist writing on {k_client_name_clean} and competition',
+                    f'Journalists writing on Comp and not on {k_client_name_clean}',
+                    f'Journalists writing on {k_client_name_clean} and not on Comp',
                 ]
                 k_textbox_texts = [
-                    (f"• {k_cn} and its peers collectively received {k_total_news} news mentions online during the specified time period.\n"
-                     f"• {k_cn} received {k_client_sov_count} articles during this period."),
-                    (f"• {k_cn} witnessed its highest news coverage in {k_peak_month}, with {k_peak_count} articles.\n"
-                     f"• Month-on-month trends indicate fluctuations in media visibility for {k_cn} and its competitors."),
-                    (f"• Leading publications: {k_top1_pub} ({k_top1_pub_count}), {k_top2_pub} ({k_top2_pub_count}), {k_top3_pub} ({k_top3_pub_count}).\n"
-                     f"• Publications covering {k_cn}: {k_topc1_pub} ({k_topc1_count}), {k_topc2_pub} ({k_topc2_count}), {k_topc3_pub} ({k_topc3_count}).\n"
-                     f"• Top 10 publications contribute {k_top10_perc}% ({k_top10_sum} of {k_client_sov_count} articles)."),
-                    (f"• Top journalists: {k_topj1_name} ({k_topj1_pub}, {k_topj1_count}), {k_topj2_name} ({k_topj2_pub}, {k_topj2_count}), {k_topj3_name} ({k_topj3_pub}, {k_topj3_count}).\n"
-                     f"• Journalists covering {k_cn}: {k_jc1_name} ({k_jc1_pub}, {k_jc1_count}), {k_jc2_name} ({k_jc2_pub}, {k_jc2_count}), {k_jc3_name} ({k_jc3_pub}, {k_jc3_count}).\n"
-                     f"• {k_bureau_articles} ({k_bureau_pct}%) Bureau articles, {k_individual_articles} ({k_individual_pct}%) individual. "
-                     f"{k_non_zero_journalists}/{k_total_journalists} journalists ({k_client_jour_pct}%) mentioned {k_cn}."),
-                    (f"• Top journalists on competitors not on {k_cn}: {k_jcomp1_name} ({k_jcomp1_pub}, {k_jcomp1_count}), "
-                     f"{k_jcomp2_name} ({k_jcomp2_pub}, {k_jcomp2_count}), {k_jcomp3_name} ({k_jcomp3_pub}, {k_jcomp3_count}).\n"
-                     f"• Engagement opportunity for {k_cn}."),
-                    (f"• Journalists on {k_cn} not competitors: {k_jclient1_name} ({k_jclient1_pub}, {k_jclient1_count}), "
-                     f"{k_jclient2_name} ({k_jclient2_pub}, {k_jclient2_count})."),
-                ]
+    "• ",
+    "• ",
+    "• ",
+    "• ",
+    "• ",
+    "• ",
+]
 
                 # ── Add data slides ─────────────────────────────────────────────
                 for i, (df, title) in enumerate(zip(k_dfs_ppt, k_table_titles_ppt)):
@@ -1709,7 +1732,7 @@ if date_selected and industry_provided :
                         line_title = line_slide.shapes.add_textbox(
     Inches(0.8), Inches(0.2), Inches(14), Inches(0.2)
 )
-                        line_title.text_frame.text = f'Month-on-Month Graph of {k_cn} and competition'
+                        line_title.text_frame.text = f'Month-on-Month Graph of {k_client_col} and competition'
                         for paragraph in line_title.text_frame.paragraphs:
                             for run in paragraph.runs:
                                 run.font.size = Pt(28)
@@ -2994,7 +3017,7 @@ if date_selected and industry_provided :# File Upload Section
                         
                 entity_info = f"""Entity:{client_name}
 Time Period of analysis: {start_date} to {end_date}
-Source: (Online)Select 100 online publications, which include Hybrid Media - Business, General & Technology and Digital First publications.
+Source: (Print) Factiva, 25 leading publications including Financial and mainline newspapers, Business and General Magazines..
 News search: All Articles: entity mentioned at least once in the article"""
                 excel_io_all = io.BytesIO()
                 w1 = multiple_dfs(dfs, 'Tables', excel_io_all, comments, entity_info)
@@ -3130,16 +3153,22 @@ News search: All Articles: entity mentioned at least once in the article"""
             time_period_frame.paragraphs[0].font.name = 'Gill Sans'
         
         
-            # Add Source text
-            source_text = "Source: Select 100 online publications, which include Hybrid Media - Business, General & Technology and Digital First publications."
-            source_shape = slide.shapes.add_textbox(Inches(0.6), Inches(3), Inches(10), Inches(1.5))  # Adjusted width
+           # Add Source text
+            source_shape = slide.shapes.add_textbox(Inches(0.6), Inches(3), Inches(10), Inches(1.5))
             source_frame = source_shape.text_frame
-            source_frame.word_wrap = True  # Enable text wrapping
-            p = source_frame.add_paragraph()  # Create a paragraph for text
-            p.text = source_text  # Set the text
-        
-            p.font.size = Pt(24)
-            p.font.name = 'Gill Sans'  # Changed to Arial for compatibility
+            source_frame.word_wrap = True  
+
+            # First line (Online)
+            p1 = source_frame.add_paragraph()
+            p1.text = "Source: (Online) Kalki All publications."
+            p1.font.size = Pt(24)
+            p1.font.name = 'Gill Sans'
+
+            # Second line (Print / Factiva)
+            p2 = source_frame.add_paragraph()
+            p2.text = "(Print) Factiva, 25 leading publications including Financial and mainline newspapers, Business and General Magazines."
+            p2.font.size = Pt(24)
+            p2.font.name = 'Gill Sans'
         
             # Add News Search text
             news_search_text = "News Search : All Articles: entity mentioned at least once in the article "
