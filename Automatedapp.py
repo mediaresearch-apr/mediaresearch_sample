@@ -1116,9 +1116,9 @@ if date_selected and industry_provided :
             # Explode on Author for TOTAL article counts (entity-wise columns)
             k_exploded = kfinaldata.copy()          # ← already correct, kfinaldata is the SOV source
             k_exploded["Author"] = (
-                k_exploded["Author"].astype(str).str.split(",")
-                .apply(lambda lst: [j.strip() for j in lst])
-            )
+    k_exploded["Author"].fillna("Bureau News").astype(str).str.split(",")
+    .apply(lambda lst: [j.strip() for j in lst] if isinstance(lst, list) else ["Bureau News"])
+)
             k_exploded = k_exploded.explode("Author").reset_index(drop=True)
 
             k_jr_cross = pd.crosstab(k_exploded["Author"], k_exploded["Entity"]).reset_index()
@@ -1126,9 +1126,9 @@ if date_selected and industry_provided :
             # Explode on Author for UNIQUE article counts (Total Unique Articles column)
             k_exploded_unique = kfinaldata_unique.copy()
             k_exploded_unique["Author"] = (
-                k_exploded_unique["Author"].astype(str).str.split(",")
-                .apply(lambda lst: [j.strip() for j in lst])
-            )
+    k_exploded_unique["Author"].fillna("Bureau News").astype(str).str.split(",")
+    .apply(lambda lst: [j.strip() for j in lst] if isinstance(lst, list) else ["Bureau News"])
+)
             k_exploded_unique = k_exploded_unique.explode("Author").reset_index(drop=True)
 
             k_unique_total = (
