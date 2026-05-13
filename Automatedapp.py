@@ -2133,41 +2133,12 @@ if date_selected and industry_provided :# File Upload Section
         # data.drop_duplicates(subset=['Date', 'Entity', 'Hit Sentence', 'Publication Name'], keep='first', inplace=True, ignore_index=True)
         # Check if specific columns exist before dropping duplicates
             if {'Date', 'Entity', 'Headline', 'Publication Name'}.issubset(data.columns):
-                dupes_1 = data[data.duplicated(
-                    subset=['Date', 'Entity', 'Headline', 'Publication Name'], keep='first'
-                )].copy()
-                dupes_1['Duplicate_Reason'] = 'Date+Entity+Headline+PublicationName'
-                all_duplicates = pd.concat([all_duplicates, dupes_1], ignore_index=True)
-                data.drop_duplicates(
-                    subset=['Date', 'Entity', 'Headline', 'Publication Name'],
-                    keep='first', inplace=True
-                )
+                data.drop_duplicates(subset=['Date', 'Entity', 'Headline', 'Publication Name'], keep='first', inplace=True)
             if {'Date', 'Entity', 'Opening Text', 'Publication Name'}.issubset(data.columns):
                 data.drop_duplicates(subset=['Date', 'Entity', 'Opening Text', 'Publication Name'], keep='first', inplace=True, ignore_index=True)
             if {'Date', 'Entity', 'Hit Sentence', 'Publication Name'}.issubset(data.columns):
                 data.drop_duplicates(subset=['Date', 'Entity', 'Hit Sentence', 'Publication Name'], keep='first', inplace=True, ignore_index=True)
-            if not all_duplicates.empty:
-                st.sidebar.write(f"### ⚠️ {len(all_duplicates)} Duplicate Rows Found")
-
-                dup_excel = io.BytesIO()
-                with pd.ExcelWriter(dup_excel, engine='xlsxwriter') as writer:
-                    all_duplicates.to_excel(writer, index=False, sheet_name='Duplicates')
-                # seek(0) AFTER the with block closes, so xlsxwriter flushes properly
-                dup_excel.seek(0)
-            
-                st.sidebar.download_button(
-                    label="⬇️ Download Removed Duplicates",
-                    data=dup_excel.getvalue(),   # use .getvalue() not the buffer directly
-                    file_name="Removed_Duplicates.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="duplicates_download"
-                )
-            
-                with st.expander(f"Preview Removed Duplicates ({len(all_duplicates)} rows)"):
-                    st.dataframe(all_duplicates)
-            
-            else:
-                st.sidebar.write("✅ No duplicates found.")
+                
             finaldata = data
             finaldata['Date'] = pd.to_datetime(finaldata['Date']).dt.normalize()
             competitors = [ent for ent in finaldata['Entity'].unique() if not ent.startswith("Client-")]
