@@ -1297,6 +1297,8 @@ if date_selected and industry_provided :
                 df.columns = [str(c).replace("Client-", "") for c in df.columns]
                 if "Entity" in df.columns:
                     df["Entity"] = df["Entity"].astype(str).str.replace("Client-", "", regex=False)
+                if "Client %" in df.columns:
+                    df = df.rename(columns={"Client %": f"{k_client_name_clean} %"})
                 return df
             if st.sidebar.button("Download Kalki Combined Excel"):
      
@@ -1531,6 +1533,7 @@ if date_selected and industry_provided :
                 k_ordered = ["Report", "All Pub-Jour"]
                 if k_client_sheet:
                     k_ordered.append(k_client_sheet)
+                    k_wb_final[k_client_sheet].title = k_client_sheet.replace("Client-", "")
                 k_ordered += [s for s in k_sov_order_no_client if s in k_all_sheets]
                 k_ordered += [s for s in k_all_sheets if s not in k_ordered]
                 k_wb_final._sheets = [k_wb_final[s] for s in k_ordered]
@@ -3023,6 +3026,8 @@ if date_selected and industry_provided :# File Upload Section
                 df.columns = [str(c).replace("Client-", "") for c in df.columns]
                 if "Entity" in df.columns:
                     df["Entity"] = df["Entity"].astype(str).str.replace("Client-", "", regex=False)
+                if "Client %" in df.columns:
+                    df = df.rename(columns={"Client %": f"{client_name} %"})
                 return df
             
             dfs = [
@@ -3071,6 +3076,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 ordered_sheets = ['Report', 'All Pub-Jour']
                 if client_sheet:
                     ordered_sheets.append(client_sheet)
+                    wb_final[client_sheet].title = client_sheet.replace("Client-", "")
                 ordered_sheets += [s for s in sov_order_no_client if s in all_sheets]
                 remaining_sheets = [s for s in all_sheets if s not in ordered_sheets]
                 ordered_sheets += remaining_sheets
