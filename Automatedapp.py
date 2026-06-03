@@ -1021,6 +1021,7 @@ if date_selected and industry_provided :
 
             k_Entity_SOV3 = pd.DataFrame(k_sov_raw.to_records()).round()
             k_Entity_SOV3["News Count"] = k_Entity_SOV3["News Count"].astype(int)
+            k_Entity_SOV3["Entity"] = k_Entity_SOV3["Entity"].str.replace("Client-", "", regex=False)
 
             # ── Fix: set Total % row to exactly 100% instead of summed rounded values ──
             k_Entity_SOV3.loc[k_Entity_SOV3["Entity"] == "Total", "% "] = 100
@@ -1291,7 +1292,12 @@ if date_selected and industry_provided :
             k_client_name_clean = (
                     k_client_col.replace("Client-", "") if k_client_col else ""
                 )
-     
+            def strip_client_prefix(df):
+                df = df.copy()
+                df.columns = [str(c).replace("Client-", "") for c in df.columns]
+                if "Entity" in df.columns:
+                    df["Entity"] = df["Entity"].astype(str).str.replace("Client-", "", regex=False)
+                return df
             if st.sidebar.button("Download Kalki Combined Excel"):
      
                 k_client_name_clean = (
@@ -1318,13 +1324,13 @@ if date_selected and industry_provided :
                 k_Jour_table20_report = k_Jour_table20_display.reset_index(drop=True).copy()
                 # DataFrames for the Report sheet (top-20 slices, renamed)
                 k_dfs_report = [
-                    k_Entity_SOV3,
-                    k_sov_dt11,
-                    k_pubs_table20,
-                    k_Jour_table20_display,
-                    k_Jour_Comp_display,
-                    k_Jour_Client_display,
-                ]
+    strip_client_prefix(k_Entity_SOV3),
+    strip_client_prefix(k_sov_dt11),
+    strip_client_prefix(k_pubs_table20),
+    strip_client_prefix(k_Jour_table20_display),
+    strip_client_prefix(k_Jour_Comp_display),
+    strip_client_prefix(k_Jour_Client_display),
+]
 
                 # Pass these objects explicitly – their last rows get bolded
                 k_highlight_report = [
@@ -1370,7 +1376,7 @@ if date_selected and industry_provided :
                 # Safety check — ensure GrandTotal label is present on last row
                 if str(k_Jour_all_display.iloc[-1]["Journalist"]).strip().lower() != "grandtotal":
                     k_Jour_all_display.iloc[-1, k_Jour_all_display.columns.get_loc("Journalist")] = "GrandTotal"
-                k_dfs_all      = [k_pubs_all,            k_Jour_table_display]
+                k_dfs_all = [strip_client_prefix(k_pubs_all), strip_client_prefix(k_Jour_table_display)]
                 k_comments_all = ["Publication Table",   "Journalist Table"]
                 k_highlight_all = [k_pubs_all,           k_Jour_table_display]
      
@@ -1694,8 +1700,14 @@ if date_selected and industry_provided :
                 k_Jour_Comp_ppt   = k_Jour_Comp_display.copy()
                 k_Jour_Client_ppt = k_Jour_Client_display.copy()
 
-                k_dfs_ppt = [k_Entity_SOV3_ppt, k_sov_dt11_ppt, k_pubs_ppt,
-                             k_Jour_ppt, k_Jour_Comp_ppt, k_Jour_Client_ppt]
+                k_dfs_ppt = [
+    strip_client_prefix(k_Entity_SOV3_ppt),
+    strip_client_prefix(k_sov_dt11_ppt),
+    strip_client_prefix(k_pubs_ppt),
+    strip_client_prefix(k_Jour_ppt),
+    strip_client_prefix(k_Jour_Comp_ppt),
+    strip_client_prefix(k_Jour_Client_ppt),
+]
                 k_table_titles_ppt = [
                     f'SOV Table of {k_client_name_clean} and competition',
                     f'Month-on-Month Table of {k_client_name_clean} and competition',
@@ -2165,6 +2177,7 @@ if date_selected and industry_provided :# File Upload Section
             Entity_SOV3['News Count'] = Entity_SOV3['News Count'].astype(int)
             Entity_SOV3['% '] = Entity_SOV3['% '].astype(int)
             Entity_SOV3['% '] = Entity_SOV3['% '].astype(str) + '%'
+            Entity_SOV3['Entity'] = Entity_SOV3['Entity'].str.replace("Client-", "", regex=False)
         # Entity_SOV3 = pd.DataFrame(Entity_SOV3.to_records())
 
         # # Plot the bar graph
@@ -3005,7 +3018,22 @@ if date_selected and industry_provided :# File Upload Section
             # Extract the brand name from the "Entity" column (after "Client-" if present)
             client_name = entity.split("Client-")[-1]
     
-            dfs = [Entity_SOV3, sov_dt11, pubs_table,Unique_Articles, PType_Entity, Jour_Comp, Jour_Client]
+            def strip_client_prefix(df):
+                df = df.copy()
+                df.columns = [str(c).replace("Client-", "") for c in df.columns]
+                if "Entity" in df.columns:
+                    df["Entity"] = df["Entity"].astype(str).str.replace("Client-", "", regex=False)
+                return df
+            
+            dfs = [
+                strip_client_prefix(Entity_SOV3),
+                strip_client_prefix(sov_dt11),
+                strip_client_prefix(pubs_table2O),
+                strip_client_prefix(Unique_Articles2O),
+                strip_client_prefix(PType_Entity),
+                strip_client_prefix(Jour_Comp),
+                strip_client_prefix(Jour_Client),
+            ]
             comments = ['SOV Table', 'Month-on-Month Table', 'Publication Table', 'Journalist Table','Pub Type and Entity Table','Journ-on Comp, not Client','Journ-on Client, not Comp']
     
             # Sidebar for download options
@@ -3550,7 +3578,15 @@ News search: All Articles: entity mentioned at least once in the article"""
                 numeric_columns = pubs_table1.select_dtypes(include=['number']).columns
                 pubs_table1[numeric_columns] = pubs_table1[numeric_columns].astype(int)
                 Jour_table1 = Jour_table.head(10)
-                dfs = [Entity_SOV3, sov_dt11, pubs_table1,Unique_Articles1O, PType_Entity, Jour_Comp, Jour_Client]
+                dfs = [
+    strip_client_prefix(Entity_SOV3),
+    strip_client_prefix(sov_dt11),
+    strip_client_prefix(pubs_table1),
+    strip_client_prefix(Unique_Articles1O),
+    strip_client_prefix(PType_Entity),
+    strip_client_prefix(Jour_Comp),
+    strip_client_prefix(Jour_Client),
+]
                 table_titles = [f'SOV Table of {client_name} and competition', f'Month-on-Month Table of {client_name} and competition', f'Publication Table on {client_name} and competition', f'Journalist writing on {client_name} and competition',
                             f'Publication Types writing on {client_name} and competition',f'Journalists writing on Comp and not on {client_name}', f'Journalists writing on {client_name} and not on Comp'
                             ]
