@@ -1532,8 +1532,11 @@ if date_selected and industry_provided :
                 )
                 k_ordered = ["Report", "All Pub-Jour"]
                 if k_client_sheet:
-                    k_ordered.append(k_client_sheet)
-                    k_wb_final[k_client_sheet].title = k_client_sheet.replace("Client-", "")
+                    # Rename before ordering
+                    k_new_client_name = k_client_sheet.replace("Client-", "")
+                    k_wb_final[k_client_sheet].title = k_new_client_name
+                    k_all_sheets = k_wb_final.sheetnames  # refresh after rename
+                    k_ordered.append(k_new_client_name)
                 k_ordered += [s for s in k_sov_order_no_client if s in k_all_sheets]
                 k_ordered += [s for s in k_all_sheets if s not in k_ordered]
                 k_wb_final._sheets = [k_wb_final[s] for s in k_ordered]
@@ -3075,8 +3078,10 @@ News search: All Articles: entity mentioned at least once in the article"""
                 client_sheet = next((s for s in all_sheets if s.startswith("Client-")), None)
                 ordered_sheets = ['Report', 'All Pub-Jour']
                 if client_sheet:
-                    ordered_sheets.append(client_sheet)
-                    wb_final[client_sheet].title = client_sheet.replace("Client-", "")
+                    new_client_name = client_sheet.replace("Client-", "")
+                    wb_final[client_sheet].title = new_client_name
+                    all_sheets = wb_final.sheetnames  # refresh after rename
+                    ordered_sheets.append(new_client_name)
                 ordered_sheets += [s for s in sov_order_no_client if s in all_sheets]
                 remaining_sheets = [s for s in all_sheets if s not in ordered_sheets]
                 ordered_sheets += remaining_sheets
