@@ -409,7 +409,7 @@ def create_entity_sheets(data, writer):
                 worksheet.column_dimensions[col_ltr].width = 55
 
             elif col_name in summary_cols:
-                worksheet.column_dimensions[col_ltr].width = 15
+                worksheet.column_dimensions[col_ltr].width = 55
 
             elif col_name in url_cols:
                 worksheet.column_dimensions[col_ltr].width = 35
