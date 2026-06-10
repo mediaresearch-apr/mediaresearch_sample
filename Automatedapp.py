@@ -3045,7 +3045,15 @@ if date_selected and industry_provided :# File Upload Section
             st.sidebar.write("## Download Combined Excel")
             file_name_all = st.sidebar.text_input("Enter file name for Combined Excel", "Combined Excel.xlsx")
             if st.sidebar.button("Download Combined Excel"):
-                dfs = [Entity_SOV3, sov_dt11, pubs_table2O, Unique_Articles2O, PType_Entity, Jour_Comp, Jour_Client]
+                dfs = [
+    strip_client_prefix(Entity_SOV3),
+    strip_client_prefix(sov_dt11),
+    strip_client_prefix(pubs_table1),
+    strip_client_prefix(Unique_Articles2O),
+    strip_client_prefix(PType_Entity),
+    strip_client_prefix(Jour_Comp),
+    strip_client_prefix(Jour_Client),
+]
                 comments =['SOV Table', 'Month-on-Month Table', 'Publication Table', 'Journalist Table','Pub Type and Entity Table','Journ-on Comp, not Client','Journ-on Client, not Comp']
                         
                 entity_info = f"""Entity:{client_name}
