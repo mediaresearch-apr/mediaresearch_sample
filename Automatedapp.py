@@ -2404,7 +2404,8 @@ if date_selected and industry_provided :# File Upload Section
             # topc_3 = selected_columns.iloc[2:3]  # Third publication
             pubs_table_trimmed = pubs_table.iloc[:-1]
             top10_pub_sum = pubs_table_trimmed[client_column].sort_values(ascending=False).head(10).sum()
-            client_sov_count = int(Entity_SOV3.loc[Entity_SOV3["Entity"] == client_column, "News Count"].values[0])
+            client_name_for_sov = client_column.replace("Client-", "")
+            client_sov_count = int(Entity_SOV3.loc[Entity_SOV3["Entity"] == client_name_for_sov, "News Count"].values[0])
             top10_pub_perc = int(round(( top10_pub_sum / client_sov_count) * 100))
 
             client_sov = Unique_Articles.loc[Unique_Articles['Journalist'] == 'Total',client_column].values[0]
