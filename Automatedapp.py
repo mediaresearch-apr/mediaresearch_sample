@@ -40,6 +40,14 @@ import io, base64
 # Streamlit app with a sidebar layout
 st.set_page_config(layout="wide")
 
+def strip_client_prefix(df):
+    """Remove 'Client-' prefix from all column names and string values in 'Entity' column."""
+    df = df.copy()
+    df.columns = [c.replace("Client-", "") if isinstance(c, str) else c for c in df.columns]
+    if "Entity" in df.columns:
+        df["Entity"] = df["Entity"].astype(str).str.replace("Client-", "", regex=False)
+    return df
+
 # Function to process the Excel file
 def process_excel(file):
     # Initialize Excel writer
@@ -334,13 +342,16 @@ def create_entity_sheets(data, writer):
         entity_df = data[data['Entity'] == Entity].copy()
         entity_df['Date'] = entity_df['Date'].dt.date
         entity_df['Journalist'] = entity_df['Journalist'].str.replace(r"[\[\]']", "", regex=True)
+        if "Entity" in entity_df.columns:
+            entity_df["Entity"] = entity_df["Entity"].astype(str).str.replace("Client-", "", regex=False)
 
         # Drop unwanted columns (if they exist)
         entity_df.drop(columns=[col for col in cols_to_drop if col in entity_df.columns], inplace=True)
 
         # Write to Excel
-        entity_df.to_excel(writer, sheet_name=Entity, index=False)
-        worksheet = writer.sheets[Entity]
+        clean_entity_name = str(Entity).replace("Client-", "")[:31]
+        entity_df.to_excel(writer, sheet_name=clean_entity_name, index=False)
+        worksheet = writer.sheets[clean_entity_name]
 
         # Set width and wrap text for columns C to F
         for col_idx in range(3, 7):  # Columns C to F
@@ -1268,12 +1279,12 @@ if date_selected and industry_provided :
             # ── 9. PREVIEW ────────────────────────────────────────────────
             
             k_preview_options = {
-                "SOV Table":                k_Entity_SOV3,
-                "Month-on-Month":           k_sov_dt11,
-                "Publication Table":        k_pubs_table,
-                "Journalist Table":             k_Jour_table,
-                "Journ on Comp, not Client":k_Jour_Comp,
-                "Journ on Client, not Comp":k_Jour_Client,
+                "SOV Table":            strip_client_prefix(k_Entity_SOV3),
+                "Month-on-Month":           strip_client_prefix(k_sov_dt11),
+                "Publication Table":        strip_client_prefix(k_pubs_table),
+                "Journalist Table":             strip_client_prefix(k_Jour_table),
+                "Journ on Comp, not Client":strip_client_prefix(k_Jour_Comp),
+                "Journ on Client, not Comp":strip_client_prefix(k_Jour_Client),
             }
             k_sel = st.selectbox(
                 "Select DataFrame to Preview (Kalki):",
@@ -1318,12 +1329,12 @@ if date_selected and industry_provided :
                 k_Jour_table20_report = k_Jour_table20_display.reset_index(drop=True).copy()
                 # DataFrames for the Report sheet (top-20 slices, renamed)
                 k_dfs_report = [
-                    k_Entity_SOV3,
-                    k_sov_dt11,
-                    k_pubs_table20,
-                    k_Jour_table20_display,
-                    k_Jour_Comp_display,
-                    k_Jour_Client_display,
+                    strip_client_prefix(k_Entity_SOV3),
+                    strip_client_prefix(k_sov_dt11),
+                    strip_client_prefix(k_pubs_table20),
+                    strip_client_prefix(k_Jour_table20_display),
+                    strip_client_prefix(k_Jour_Comp_display),
+                    strip_client_prefix(k_Jour_Client_display),
                 ]
 
                 # Pass these objects explicitly – their last rows get bolded
@@ -1370,9 +1381,9 @@ if date_selected and industry_provided :
                 # Safety check — ensure GrandTotal label is present on last row
                 if str(k_Jour_all_display.iloc[-1]["Journalist"]).strip().lower() != "grandtotal":
                     k_Jour_all_display.iloc[-1, k_Jour_all_display.columns.get_loc("Journalist")] = "GrandTotal"
-                k_dfs_all      = [k_pubs_all,            k_Jour_table_display]
+                k_dfs_all      = [strip_client_prefix(k_pubs_all), strip_client_prefix(k_Jour_table_display)]
                 k_comments_all = ["Publication Table",   "Journalist Table"]
-                k_highlight_all = [k_pubs_all,           k_Jour_table_display]
+                k_highlight_all = [strip_client_prefix(k_pubs_all), strip_client_prefix(k_Jour_table_display)]
      
                 kalki_multiple_dfs1(
                     k_dfs_all,
@@ -1398,8 +1409,12 @@ if date_selected and industry_provided :
                         k_entity_df = kraw_for_entity[
                             kraw_for_entity["Entity"] == k_entity_name
                         ].reset_index(drop=True)
-
-                        k_sheet_name = str(k_entity_name)[:31]
+                        # Strip "Client-" from Entity column values
+                        if "Entity" in k_entity_df.columns:
+                            k_entity_df["Entity"] = k_entity_df["Entity"].astype(str).str.replace("Client-", "", regex=False)
+                        
+                        # Strip "Client-" from sheet name
+                        k_sheet_name = str(k_entity_name).replace("Client-", "")[:31]
                         if "Date" in k_entity_df.columns:
                             k_entity_df["Date"] = pd.to_datetime(k_entity_df["Date"]).dt.date
                         k_entity_df.to_excel(
@@ -1520,8 +1535,10 @@ if date_selected and industry_provided :
                 k_wb_final   = load_workbook(k_excel_io2)
                 k_all_sheets = k_wb_final.sheetnames
                 k_client_sheet = next(
-                    (s for s in k_all_sheets if s.startswith("Client-")), None
-                )
+    (s for s in k_all_sheets if s == k_client_name_clean), None
+) or next(
+    (s for s in k_all_sheets if s.startswith("Client-")), None
+)
                 k_ordered = ["Report", "All Pub-Jour"]
                 if k_client_sheet:
                     k_ordered.append(k_client_sheet)
@@ -1694,8 +1711,14 @@ if date_selected and industry_provided :
                 k_Jour_Comp_ppt   = k_Jour_Comp_display.copy()
                 k_Jour_Client_ppt = k_Jour_Client_display.copy()
 
-                k_dfs_ppt = [k_Entity_SOV3_ppt, k_sov_dt11_ppt, k_pubs_ppt,
-                             k_Jour_ppt, k_Jour_Comp_ppt, k_Jour_Client_ppt]
+                k_dfs_ppt = [
+    strip_client_prefix(k_Entity_SOV3_ppt),
+    strip_client_prefix(k_sov_dt11_ppt),
+    strip_client_prefix(k_pubs_ppt),
+    strip_client_prefix(k_Jour_ppt),
+    strip_client_prefix(k_Jour_Comp_ppt),
+    strip_client_prefix(k_Jour_Client_ppt),
+]
                 k_table_titles_ppt = [
                     f'SOV Table of {k_client_name_clean} and competition',
                     f'Month-on-Month Table of {k_client_name_clean} and competition',
@@ -3005,7 +3028,15 @@ if date_selected and industry_provided :# File Upload Section
             # Extract the brand name from the "Entity" column (after "Client-" if present)
             client_name = entity.split("Client-")[-1]
     
-            dfs = [Entity_SOV3, sov_dt11, pubs_table,Unique_Articles, PType_Entity, Jour_Comp, Jour_Client]
+            dfs = [
+    strip_client_prefix(Entity_SOV3),
+    strip_client_prefix(sov_dt11),
+    strip_client_prefix(pubs_table1),
+    strip_client_prefix(Unique_Articles1O),
+    strip_client_prefix(PType_Entity),
+    strip_client_prefix(Jour_Comp),
+    strip_client_prefix(Jour_Client),
+]
             comments = ['SOV Table', 'Month-on-Month Table', 'Publication Table', 'Journalist Table','Pub Type and Entity Table','Journ-on Comp, not Client','Journ-on Client, not Comp']
     
             # Sidebar for download options
@@ -3027,7 +3058,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 wb = load_workbook(excel_io_all)
                 pubs_table.at[pubs_table.index[-1], 'Publication Name'] = 'Total'
         
-                dfs1 = [pubs_table, Unique_Articles]
+                dfs1 = [strip_client_prefix(pubs_table), strip_client_prefix(Unique_Articles)]
                 comments1 = ['Publication Table', 'Journalist Table']
                 multiple_dfs1(dfs1, 'All Pub-Jour', wb, comments1)  # <-- this writes directly into base workbook
                 
@@ -3039,7 +3070,8 @@ News search: All Articles: entity mentioned at least once in the article"""
                     writer.book.worksheets[0].title = "Report"
                 wb_final = load_workbook(excel_io_2)
                 all_sheets = wb_final.sheetnames
-                client_sheet = next((s for s in all_sheets if s.startswith("Client-")), None)
+                client_sheet = next((s for s in all_sheets if s == client_name), None) or \
+               next((s for s in all_sheets if s.startswith("Client-")), None)
                 ordered_sheets = ['Report', 'All Pub-Jour']
                 if client_sheet:
                     ordered_sheets.append(client_sheet)
@@ -3057,19 +3089,17 @@ News search: All Articles: entity mentioned at least once in the article"""
                 
             st.write("## Preview Selected DataFrame")
             dataframes_to_download = {
-            "Entity_SOV1": Entity_SOV3,
-            "Data": data,
-            "Finaldata": finaldata,
-            "Month-on-Month":sov_dt11,
-            "Publication Table":pubs_table,
-           "Journalist Table": Unique_Articles,
-            # "Publication Type and Name Table":PP_table,
-            "Publication Type Table with Entity":PType_Entity,
-            # "Publication type,Publication Name and Entity Table":ppe1,
-            "Entity-wise Sheets": finaldata,                            # Add this option to download entity-wise sheets
-            "Journalist writing on Comp not on Client" : Jour_Comp, 
-            "Journalist writing on Client & not on Comp" : Jour_Client
-        } 
+"Entity_SOV1": strip_client_prefix(Entity_SOV3),
+"Data": data,
+"Finaldata": finaldata,
+"Month-on-Month": strip_client_prefix(sov_dt11),
+"Publication Table": strip_client_prefix(pubs_table),
+"Journalist Table": strip_client_prefix(Unique_Articles),
+"Publication Type Table with Entity": strip_client_prefix(PType_Entity),
+"Entity-wise Sheets": finaldata,
+"Journalist writing on Comp not on Client": strip_client_prefix(Jour_Comp),
+"Journalist writing on Client & not on Comp": strip_client_prefix(Jour_Client)
+}
             selected_dataframe = st.selectbox("Select DataFrame to Preview:", list(dataframes_to_download.keys()))
             st.dataframe(dataframes_to_download[selected_dataframe])
 
@@ -3550,7 +3580,15 @@ News search: All Articles: entity mentioned at least once in the article"""
                 numeric_columns = pubs_table1.select_dtypes(include=['number']).columns
                 pubs_table1[numeric_columns] = pubs_table1[numeric_columns].astype(int)
                 Jour_table1 = Jour_table.head(10)
-                dfs = [Entity_SOV3, sov_dt11, pubs_table1,Unique_Articles1O, PType_Entity, Jour_Comp, Jour_Client]
+                dfs = [
+    strip_client_prefix(Entity_SOV3),
+    strip_client_prefix(sov_dt11),
+    strip_client_prefix(pubs_table2O),
+    strip_client_prefix(Unique_Articles2O),
+    strip_client_prefix(PType_Entity),
+    strip_client_prefix(Jour_Comp),
+    strip_client_prefix(Jour_Client),
+]
                 table_titles = [f'SOV Table of {client_name} and competition', f'Month-on-Month Table of {client_name} and competition', f'Publication Table on {client_name} and competition', f'Journalist writing on {client_name} and competition',
                             f'Publication Types writing on {client_name} and competition',f'Journalists writing on Comp and not on {client_name}', f'Journalists writing on {client_name} and not on Comp'
                             ]
