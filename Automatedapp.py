@@ -3398,10 +3398,7 @@ News search: All Articles: entity mentioned at least once in the article"""
             #news_search_frame.word_wrap = True
             #news_search_frame.clear()  # Clear any default paragraph
             #p = news_search_frame.add_paragraph()
-            #p.text = (f"• The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
-                f"• Top Publication Types writing on {client_name} are {topp_1_name} and  {topp_2_name} they both contribute {topp_1_count} articles & {topp_2_count} articles respectively of the total news coverage on {client_name}.\n"
-        f"• {client_name} may find value in engaging more with {publication_types_str} to expand their reach and visibility among broader audiences to expand their reach and visibility among broader audiences.\n"
-                           )
+            #
             #p.font.size = Pt(18)
             #p.font.name = 'Gill Sans'
         
