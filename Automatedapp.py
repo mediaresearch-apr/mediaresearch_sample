@@ -3339,31 +3339,11 @@ News search: All Articles: entity mentioned at least once in the article"""
             #p.font.underline = True
             #p.font.bold = True
         
-            #sov_text = (
-            f"• {client_name} and its peers collectively received a total of {total_news_count} news mentions online during the specified time period.\n"
-            "• Among these, IIT Madras dominates the conversation with 35% of the total SOV, indicating significant media coverage and visibility.\n"
-            "• IIT Delhi follows IIT Madras, capturing 21% of the SOV. While its coverage is notably lower than IIT Madras, it still indicates a considerable presence in the online space.\n"
-            "• IIT Bombay, IIT Kanpur, and IIT Roorkee also receive notable coverage, with 20%, 17%, and 6% of the SOV respectively.\n"
-            f"• {client_name} holds a smaller share of the online conversation compared to its peers, with just 1% of the SOV and ranks 6th i.e. last in the SOV.\n"
-            f"• Despite ranking lower in terms of SOV, {client_name}'s presence indicates some level of visibility and recognition within the online media landscape.\n"
-            f"• Given the relatively lower SOV compared to peers like IIT Delhi, IIT Madras, and others, there are opportunities for {client_name} to enhance its online presence and visibility through strategic communications efforts.\n"
-            f"• {client_name} has received 239 all mentions and 44 prominent articles in online media and stands last in both the SOVs.\n")
-            #sov_text_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
-            #sov_text_frame = sov_text_shape.text_frame
-            #sov_text_frame.word_wrap = True
-            #sov_text_frame.clear()  # Clear any default paragraph
+            #sov_text 
         
         
             #p = sov_text_frame.add_paragraph()
-            #p.text = (
-            f"• {client_name} and its peers collectively received a total of {total_news_count} news mentions online during the specified time period.\n"
-            "• Among these, IIT Madras dominates the conversation with 35% of the total SOV, indicating significant media coverage and visibility.\n"
-            "• IIT Delhi follows IIT Madras, capturing 21% of the SOV. While its coverage is notably lower than IIT Madras, it still indicates a considerable presence in the online space.\n"
-            "• IIT Bombay, IIT Kanpur, and IIT Roorkee also receive notable coverage, with 20%, 17%, and 6% of the SOV respectively.\n"
-            f"• {client_name} holds a smaller share of the online conversation compared to its peers, with just 1% of the SOV and ranks 6th i.e. last in the SOV.\n"
-            f"• Despite ranking lower in terms of SOV, {client_name}'s presence indicates some level of visibility and recognition within the online media landscape.\n"
-            f"• Given the relatively lower SOV compared to peers like IIT Delhi, IIT Madras, and others, there are opportunities for {client_name} to enhance its online presence and visibility through strategic communications efforts.\n"
-            f"• {client_name} has received 239 all mentions and 44 prominent articles in online media and stands last in both the SOVs.\n")
+            #p.text 
             #p.font.size = Pt(18)
             #p.font.name = 'Gill Sans'
         
@@ -3412,10 +3392,7 @@ News search: All Articles: entity mentioned at least once in the article"""
             #p.font.underline = True
             #p.font.bold = True
         
-            #news_search_text = (f"• The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
-                f"• Top Publication Types writing on {client_name} are {topp_1_name} and  {topp_2_name} they both contribute {topp_1_count} articles & {topp_2_count} articles respectively of the total news coverage on {client_name}.\n"
-                f"• {client_name} may find value in engaging more with {publication_types_str} to expand their reach and visibility among broader audiences to expand their reach and visibility among broader audiences.\n"
-                           )
+         
             #news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(6.0), Inches(14), Inches(0.5))
             #news_search_frame = news_search_shape.text_frame
             #news_search_frame.word_wrap = True
@@ -3471,23 +3448,13 @@ News search: All Articles: entity mentioned at least once in the article"""
             #p.font.bold = True
         
             # Add News Search text
-            #news_search_text = (f"• The top journalists reporting on {client_name} and its competitors are {topj_1_name} from {topjt_1_name} with {topj_1_count} unique articles, followed by {topj_2_name} from {topjt_2_name} with {topj_2_count} unique articles, and {topj_3_name} from {topjt_3_name} with {topj_3_count} unique articles.\n"
-                           f"• Among the journalists specifically covering {client_name} are {journalist_name1} from {publication_name1} with {client_count1} articles, {journalist_name2} from {publication_name2} has authored {client_count2} articles and {journalist_name3} from {publication_name3} written {client_count3} articles.\n"
-                            f"• {client_name} has received a total of {client_sov} articles in news coverage. Among these, {bureau_articles} i.e {bureau_percentage}% of the articles were filed by Bureaus, while the remaining {individual_articles} i.e {individual_percentage}% were written by individual journalists.\n"
-                            f"• A total of {total_journalists} journalists have written {total_articles} unique articles covering {client_name} and its competitors, out of which, {non_zero_journalists} journalists have specifically written {articles_for_client} articles mentioning {client_name} i.e of the total journalists writing on {client_name} and its competitors only {client_journalist_percentage}% them have mentioned {client_name} in their articles.\n"
-                           f"• A total of {engage_with} journalists have not mentioned {client_name} in their articles. Inorder to increase it's visibility {client_column} needs to engage with these {engage_with} journalists.\n"
-                           )
+          
             #news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
             #news_search_frame = news_search_shape.text_frame
             #news_search_frame.word_wrap = True
             #news_search_frame.clear()  # Clear any default paragraph
             #p = news_search_frame.add_paragraph()
-            #p.text = (f"• The top journalists reporting on {client_name} and its competitors are {topj_1_name} from {topjt_1_name} with {topj_1_count} unique articles, followed by {topj_2_name} from {topjt_2_name} with {topj_2_count} unique articles, and {topj_3_name} from {topjt_3_name} with {topj_3_count} unique articles.\n"
-                           f"• Among the journalists specifically covering {client_name} are {journalist_name1} from {publication_name1} with {client_count1} articles, {journalist_name2} from {publication_name2} has authored {client_count2} articles and {journalist_name3} from {publication_name3} written {client_count3} article.\n"
-                            f"• {client_name} has received a total of {client_sov} articles in news coverage. Among these, {bureau_articles} i.e {bureau_percentage}% of the articles were filed by Bureaus, while the remaining {individual_articles} i.e {individual_percentage}% were written by individual journalists.\n"
-                            f"• A total of {total_journalists} journalists have written {total_articles} unique articles covering {client_name} and its competitors, out of which, {non_zero_journalists} journalists have specifically written {articles_for_client} articles mentioning {client_name} i.e of the total journalists writing on {client_name} and its competitors only {client_journalist_percentage}% them have mentioned {client_name} in their articles.\n"
-                           f"• A total of {engage_with} journalists have not mentioned {client_name} in their articles. Inorder to increase it's visibility {client_column} needs to engage with these {engage_with} journalists.\n"
-                           )
+          
             #p.font.size = Pt(18)
             #p.font.name = 'Gill Sans'
 
