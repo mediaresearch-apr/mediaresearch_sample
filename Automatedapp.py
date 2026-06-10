@@ -1342,17 +1342,21 @@ if date_selected and industry_provided :
                 ]
 
                 # ── Build Report sheet ────────────────────────────────────
-                k_excel_io = io.BytesIO()
+                # ── Build Report sheet ────────────────────────────────────────
+                import tempfile, os
+                k_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+                k_tmp.close()
+                
                 kalki_multiple_dfs(
-                    k_dfs_report,
-                    "Tables",
-                    k_excel_io,
-                    k_comments_report,
-                    k_entity_info,
-                    highlight_refs=k_highlight_report,
+                k_dfs_report,
+                "Tables",
+                k_tmp.name,          # ← save to a real temp file, not BytesIO
+                k_comments_report,
+                k_entity_info,
+                highlight_refs=k_highlight_report,
                 )
-                k_excel_io.seek(0)
-                k_wb = load_workbook(k_excel_io)
+                k_wb = load_workbook(k_tmp.name)
+                os.unlink(k_tmp.name)   # clean up temp file
 
                 # ── Add All Pub-Jour sheet ────────────────────────────────
                 k_pubs_all = k_pubs_table.copy()
