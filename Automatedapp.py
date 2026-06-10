@@ -327,72 +327,117 @@ def load_data(file):
 # Function to create separate Excel sheets by Entity
 
 def create_entity_sheets(data, writer):
-    # List of columns to drop
     cols_to_drop = ["Keywords", "Engagement", "Language", "Country", "Exclusivity", "Topic"]
 
-    # Ensure Entity is the first column
     if 'Entity' in data.columns:
         cols = ['Entity'] + [col for col in data.columns if col != 'Entity']
         data = data[cols]
 
     entities = data['Entity'].unique()
-    
+
     for Entity in entities:
-        # Filter data
         entity_df = data[data['Entity'] == Entity].copy()
         entity_df['Date'] = entity_df['Date'].dt.date
         entity_df['Journalist'] = entity_df['Journalist'].str.replace(r"[\[\]']", "", regex=True)
         if "Entity" in entity_df.columns:
             entity_df["Entity"] = entity_df["Entity"].astype(str).str.replace("Client-", "", regex=False)
 
-        # Drop unwanted columns (if they exist)
+        # ── Drop sr no column if present ──────────────────────────────
+        sr_cols = [c for c in entity_df.columns if str(c).strip().lower() in ("sr no", "sr no.", "sr_no", "srno")]
+        entity_df.drop(columns=sr_cols, inplace=True, errors="ignore")
+
+        # ── Move Date to 2nd column (right after Entity) ──────────────
+        if "Date" in entity_df.columns and "Entity" in entity_df.columns:
+            cols_order = ["Entity", "Date"] + [c for c in entity_df.columns if c not in ("Entity", "Date")]
+            entity_df = entity_df[cols_order]
+
         entity_df.drop(columns=[col for col in cols_to_drop if col in entity_df.columns], inplace=True)
 
-        # Write to Excel
         clean_entity_name = str(Entity).replace("Client-", "")[:31]
         entity_df.to_excel(writer, sheet_name=clean_entity_name, index=False)
         worksheet = writer.sheets[clean_entity_name]
 
-        # Set width and wrap text for columns C to F
-        for col_idx in range(3, 7):  # Columns C to F
-            col_letter = get_column_letter(col_idx)
-            worksheet.column_dimensions[col_letter].width = 48
-            for cell in worksheet[col_letter]:
-                cell.alignment = Alignment(wrap_text=True)
-                
-        first_col_letter = get_column_letter(1)
-        col0_max = entity_df.iloc[:, 0].astype(str).str.len().max()
-        col0_max = 0 if pd.isna(col0_max) else int(col0_max)
-        max_length = max(col0_max, len(str(entity_df.columns[0])))
-        worksheet.column_dimensions[first_col_letter].width = float(max_length + 2)
-        
-        second_col_letter = get_column_letter(2)
-        col1_max = entity_df.iloc[:, 1].astype(str).str.len().max()
-        col1_max = 0 if pd.isna(col1_max) else int(col1_max)
-        max_length = max(col1_max, len(str(entity_df.columns[1])))
-        worksheet.column_dimensions[second_col_letter].width = float(max_length + 2)
+        # ── Identify special columns ──────────────────────────────────
+        col_names = entity_df.columns.tolist()
 
+        headline_cols = [c for c in col_names if any(
+            kw in str(c).lower() for kw in ["headline", "title"]
+        )]
+        summary_cols = [c for c in col_names if any(
+            kw in str(c).lower() for kw in ["summary", "opening text", "hit sentence", "article summary"]
+        )]
+        url_cols = [c for c in col_names if "url" in str(c).lower()]
 
+        special_cols = set(headline_cols + summary_cols + url_cols)
 
-        # Auto-adjust width for columns G onward
-        for idx, column in enumerate(entity_df.columns[6:], start=7):
-            col_letter = get_column_letter(idx)
-            col_max = entity_df[column].astype(str).str.len().max()
-            col_max = 0 if pd.isna(col_max) else int(col_max)
-            max_length = max(col_max, len(str(column)))
-            worksheet.column_dimensions[col_letter].width = float(max_length + 2)
+        # ── Style constants ───────────────────────────────────────────
+        hdr_font  = Font(bold=True, name="Calibri")
+        data_font = Font(name="Calibri")
 
-        # Detect URLs and add hyperlink formatting
-        url_columns = [col for col in entity_df.columns if isinstance(col, str) and 'url' in col.lower()]
-        #url_columns = [col for col in entity_df.columns if 'url' in col.lower()]
-        for url_col in url_columns:
-            col_index = list(entity_df.columns).index(url_col) + 1
-            col_letter = get_column_letter(col_index)
-            for row in range(2, worksheet.max_row + 1):
-                cell = worksheet[f"{col_letter}{row}"]
+        ctr_nowrap = Alignment(horizontal="center", vertical="center", wrap_text=False)
+        ctr_wrap   = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        top_ctr    = Alignment(horizontal="center", vertical="top",    wrap_text=True)
+
+        # ── Header row: bold + center ─────────────────────────────────
+        for cell in worksheet[1]:
+            cell.font      = hdr_font
+            cell.alignment = ctr_nowrap
+
+        # ── Data rows ─────────────────────────────────────────────────
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+            for cell in row:
+                col_name = col_names[cell.column - 1] if cell.column - 1 < len(col_names) else ""
+                cell.font = data_font
+
+                if col_name in headline_cols:
+                    cell.alignment = ctr_wrap          # wrap + center h + center v
+                elif col_name in summary_cols:
+                    cell.alignment = top_ctr           # wrap + center h + top v
+                else:
+                    cell.alignment = ctr_nowrap        # no wrap, center both
+
+        # ── Uniform row height ────────────────────────────────────────
+        for rn in range(1, worksheet.max_row + 1):
+            worksheet.row_dimensions[rn].height = 30
+
+        # ── Column widths ─────────────────────────────────────────────
+        for col_0, col_name in enumerate(col_names):
+            col_ltr   = get_column_letter(col_0 + 1)
+            col_lower = str(col_name).lower()
+
+            if col_name in headline_cols:
+                worksheet.column_dimensions[col_ltr].width = 55
+
+            elif col_name in summary_cols:
+                worksheet.column_dimensions[col_ltr].width = 15
+
+            elif col_name in url_cols:
+                worksheet.column_dimensions[col_ltr].width = 35
+
+            else:
+                # Auto-fit: max of header length vs cell values, capped at 40
+                max_len = len(str(col_name))
+                for r in worksheet.iter_rows(
+                    min_row=2, max_row=worksheet.max_row,
+                    min_col=col_0 + 1, max_col=col_0 + 1
+                ):
+                    for cell in r:
+                        try:
+                            max_len = max(max_len, len(str(cell.value or "")))
+                        except Exception:
+                            pass
+                worksheet.column_dimensions[col_ltr].width = min(float(max_len) + 2, 40)
+
+        # ── URL hyperlinks ────────────────────────────────────────────
+        for url_col in url_cols:
+            col_index = col_names.index(url_col) + 1
+            col_ltr   = get_column_letter(col_index)
+            for rn in range(2, worksheet.max_row + 1):
+                cell = worksheet[f"{col_ltr}{rn}"]
                 if cell.value and isinstance(cell.value, str) and cell.value.startswith("http"):
                     cell.hyperlink = cell.value
-                    cell.style = "Hyperlink"
+                    cell.style     = "Hyperlink"
+                    cell.alignment = ctr_nowrap
 
 def add_entity_info(ws, entity_info, start_row):
     for i, line in enumerate(entity_info.split('\n'), start=1):
