@@ -3295,51 +3295,51 @@ News search: All Articles: entity mentioned at least once in the article"""
                     paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
         
             # Add title slide after the first slide
-            slide_layout = prs.slide_layouts[6]
-            slide = prs.slides.add_slide(slide_layout)
+            #slide_layout = prs.slide_layouts[6]
+            #slide = prs.slides.add_slide(slide_layout)
         
-            left = Inches(0.0)  # Adjust the left position as needed
-            top = prs.slide_height - Inches(1)  # Adjust the top position as needed
-            slide.shapes.add_picture(img_path, left, top, height=Inches(1))  # Adjust the height as needed 
+            #left = Inches(0.0)  # Adjust the left position as needed
+            #top = prs.slide_height - Inches(1)  # Adjust the top position as needed
+            #slide.shapes.add_picture(img_path, left, top, height=Inches(1))  # Adjust the height as needed 
                  
             # Clear existing placeholders
-            for shape in slide.placeholders:
-                if shape.has_text_frame:
-                    shape.text_frame.clear()  # Clear existing text frames
+            #for shape in slide.placeholders:
+                #if shape.has_text_frame:
+                    #shape.text_frame.clear()  # Clear existing text frames
         
             # Set title text and format for Parameters slide
-            header_text = "Inferences and Recommendations"
-            header_shape = slide.shapes.add_textbox(Inches(1), Inches(0.2), Inches(14), Inches(0.7))
-            header_frame = header_shape.text_frame
-            header_frame.text = header_text
-            for paragraph in header_frame.paragraphs:
-                for run in paragraph.runs:
-                    run.text = header_text
-                    run.font.size = Pt(30)
-                    run.font.bold = True
-                    run.font.name = 'Helvetica'
-                    run.font.color.rgb = RGBColor(240, 127, 9)
+            #header_text = "Inferences and Recommendations"
+            #header_shape = slide.shapes.add_textbox(Inches(1), Inches(0.2), Inches(14), Inches(0.7))
+            #header_frame = header_shape.text_frame
+            #header_frame.text = header_text
+            #for paragraph in header_frame.paragraphs:
+                #for run in paragraph.runs:
+                    #run.text = header_text
+                    #run.font.size = Pt(30)
+                    #run.font.bold = True
+                    #run.font.name = 'Helvetica'
+                    #run.font.color.rgb = RGBColor(240, 127, 9)
                     # Set alignment to center
-                    paragraph.alignment = PP_ALIGN.CENTER
+                    #paragraph.alignment = PP_ALIGN.CENTER
                     # Set vertical alignment to be at the top
-                    paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP  
+                    #paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP  
         
         
             # Add SOV text
-            sov_text = ("Share of Voice :")
-            sov_text_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.6), Inches(14), Inches(0.5))
-            sov_text_frame = sov_text_shape.text_frame
-            sov_text_frame.word_wrap = True
-            sov_text_frame.clear()  # Clear any default paragraph
+            #sov_text = ("Share of Voice :")
+            #sov_text_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.6), Inches(14), Inches(0.5))
+            #sov_text_frame = sov_text_shape.text_frame
+            #sov_text_frame.word_wrap = True
+            #sov_text_frame.clear()  # Clear any default paragraph
         
-            p = sov_text_frame.add_paragraph()
-            p.text = "Share of Voice :"
-            p.font.size = Pt(20)
-            p.font.name = 'Gill Sans'
-            p.font.underline = True
-            p.font.bold = True
+            #p = sov_text_frame.add_paragraph()
+            #p.text = "Share of Voice :"
+            #p.font.size = Pt(20)
+            #p.font.name = 'Gill Sans'
+            #p.font.underline = True
+            #p.font.bold = True
         
-            sov_text = (
+            #sov_text = (
             f"• {client_name} and its peers collectively received a total of {total_news_count} news mentions online during the specified time period.\n"
             "• Among these, IIT Madras dominates the conversation with 35% of the total SOV, indicating significant media coverage and visibility.\n"
             "• IIT Delhi follows IIT Madras, capturing 21% of the SOV. While its coverage is notably lower than IIT Madras, it still indicates a considerable presence in the online space.\n"
@@ -3347,16 +3347,15 @@ News search: All Articles: entity mentioned at least once in the article"""
             f"• {client_name} holds a smaller share of the online conversation compared to its peers, with just 1% of the SOV and ranks 6th i.e. last in the SOV.\n"
             f"• Despite ranking lower in terms of SOV, {client_name}'s presence indicates some level of visibility and recognition within the online media landscape.\n"
             f"• Given the relatively lower SOV compared to peers like IIT Delhi, IIT Madras, and others, there are opportunities for {client_name} to enhance its online presence and visibility through strategic communications efforts.\n"
-            f"• {client_name} has received 239 all mentions and 44 prominent articles in online media and stands last in both the SOVs.\n"
-                )
-            sov_text_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
-            sov_text_frame = sov_text_shape.text_frame
-            sov_text_frame.word_wrap = True
-            sov_text_frame.clear()  # Clear any default paragraph
+            f"• {client_name} has received 239 all mentions and 44 prominent articles in online media and stands last in both the SOVs.\n")
+            #sov_text_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
+            #sov_text_frame = sov_text_shape.text_frame
+            #sov_text_frame.word_wrap = True
+            #sov_text_frame.clear()  # Clear any default paragraph
         
         
-            p = sov_text_frame.add_paragraph()
-            p.text = (
+            #p = sov_text_frame.add_paragraph()
+            #p.text = (
             f"• {client_name} and its peers collectively received a total of {total_news_count} news mentions online during the specified time period.\n"
             "• Among these, IIT Madras dominates the conversation with 35% of the total SOV, indicating significant media coverage and visibility.\n"
             "• IIT Delhi follows IIT Madras, capturing 21% of the SOV. While its coverage is notably lower than IIT Madras, it still indicates a considerable presence in the online space.\n"
@@ -3364,10 +3363,9 @@ News search: All Articles: entity mentioned at least once in the article"""
             f"• {client_name} holds a smaller share of the online conversation compared to its peers, with just 1% of the SOV and ranks 6th i.e. last in the SOV.\n"
             f"• Despite ranking lower in terms of SOV, {client_name}'s presence indicates some level of visibility and recognition within the online media landscape.\n"
             f"• Given the relatively lower SOV compared to peers like IIT Delhi, IIT Madras, and others, there are opportunities for {client_name} to enhance its online presence and visibility through strategic communications efforts.\n"
-            f"• {client_name} has received 239 all mentions and 44 prominent articles in online media and stands last in both the SOVs.\n"
-            )
-            p.font.size = Pt(18)
-            p.font.name = 'Gill Sans'
+            f"• {client_name} has received 239 all mentions and 44 prominent articles in online media and stands last in both the SOVs.\n")
+            #p.font.size = Pt(18)
+            #p.font.name = 'Gill Sans'
         
         #     # Add Source text
         #     source_text = ("Publications :")
@@ -3402,227 +3400,98 @@ News search: All Articles: entity mentioned at least once in the article"""
         #     p.font.name = 'Gill Sans'
 
               # Add News Search text
-            news_search_text = ("Publication Types :" )
-            news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(5.6), Inches(14), Inches(0.5))
-            news_search_frame = news_search_shape.text_frame
-            news_search_frame.word_wrap = True
-            news_search_frame.clear()  # Clear any default paragraph
-            p = news_search_frame.add_paragraph()
-            p.text = "Publication Type :"
-            p.font.size = Pt(20)
-            p.font.name = 'Gill Sans'
-            p.font.underline = True
-            p.font.bold = True
+            #news_search_text = ("Publication Types :" )
+            #news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(5.6), Inches(14), Inches(0.5))
+            #news_search_frame = news_search_shape.text_frame
+            #news_search_frame.word_wrap = True
+            #news_search_frame.clear()  # Clear any default paragraph
+            #p = news_search_frame.add_paragraph()
+            #p.text = "Publication Type :"
+            #p.font.size = Pt(20)
+            #p.font.name = 'Gill Sans'
+            #p.font.underline = True
+            #p.font.bold = True
         
-            news_search_text = (f"• The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
+            #news_search_text = (f"• The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
                 f"• Top Publication Types writing on {client_name} are {topp_1_name} and  {topp_2_name} they both contribute {topp_1_count} articles & {topp_2_count} articles respectively of the total news coverage on {client_name}.\n"
                 f"• {client_name} may find value in engaging more with {publication_types_str} to expand their reach and visibility among broader audiences to expand their reach and visibility among broader audiences.\n"
                            )
-            news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(6.0), Inches(14), Inches(0.5))
-            news_search_frame = news_search_shape.text_frame
-            news_search_frame.word_wrap = True
-            news_search_frame.clear()  # Clear any default paragraph
-            p = news_search_frame.add_paragraph()
-            p.text = (f"• The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
+            #news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(6.0), Inches(14), Inches(0.5))
+            #news_search_frame = news_search_shape.text_frame
+            #news_search_frame.word_wrap = True
+            #news_search_frame.clear()  # Clear any default paragraph
+            #p = news_search_frame.add_paragraph()
+            #p.text = (f"• The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
                 f"• Top Publication Types writing on {client_name} are {topp_1_name} and  {topp_2_name} they both contribute {topp_1_count} articles & {topp_2_count} articles respectively of the total news coverage on {client_name}.\n"
         f"• {client_name} may find value in engaging more with {publication_types_str} to expand their reach and visibility among broader audiences to expand their reach and visibility among broader audiences.\n"
                            )
-            p.font.size = Pt(18)
-            p.font.name = 'Gill Sans'
+            #p.font.size = Pt(18)
+            #p.font.name = 'Gill Sans'
         
             # Add title slide after the first slide
-            slide_layout = prs.slide_layouts[6]
-            slide = prs.slides.add_slide(slide_layout)
+            #slide_layout = prs.slide_layouts[6]
+            #slide = prs.slides.add_slide(slide_layout)
         
         
             # Clear existing placeholders
-            for shape in slide.placeholders:
-                if shape.has_text_frame:
-                    shape.text_frame.clear()  # Clear existing text frames
+            #for shape in slide.placeholders:
+                #if shape.has_text_frame:
+                    #shape.text_frame.clear()  # Clear existing text frames
         
         
             # Set title text and format for Parameters slide
-            header_text = "Inferences and Recommendations"
-            header_shape = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(14), Inches(0.5))
-            header_frame = header_shape.text_frame
-            header_frame.text = header_text 
-            for paragraph in header_frame.paragraphs:
-                for run in paragraph.runs:
-                    run.text = header_text
-                    run.font.size = Pt(30)
-                    run.font.bold = True
-                    run.font.name = 'Helvetica'
-                    run.font.color.rgb = RGBColor(240, 127, 9)
+            #header_text = "Inferences and Recommendations"
+            #header_shape = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(14), Inches(0.5))
+            #header_frame = header_shape.text_frame
+            #header_frame.text = header_text 
+            #for paragraph in header_frame.paragraphs:
+                #for run in paragraph.runs:
+                    #run.text = header_text
+                    #run.font.size = Pt(30)
+                    #run.font.bold = True
+                    #run.font.name = 'Helvetica'
+                    #run.font.color.rgb = RGBColor(240, 127, 9)
                     # Set alignment to center
-                    paragraph.alignment = PP_ALIGN.CENTER
+                    #paragraph.alignment = PP_ALIGN.CENTER
                     # Set vertical alignment to be at the top
-                    paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP
+                    #paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP
         
         
             # Add News Search text
-            news_search_text = ("Journalists :")
-            news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.6), Inches(14), Inches(0.5))
-            news_search_frame = news_search_shape.text_frame
-            news_search_frame.word_wrap = True
-            news_search_frame.clear()  # Clear any default paragraph
-            p = news_search_frame.add_paragraph()
-            p.text = "Journalists :"
-            p.font.size = Pt(20)
-            p.font.name = 'Gill Sans'
-            p.font.underline = True
-            p.font.bold = True
+            #news_search_text = ("Journalists :")
+            #news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(0.6), Inches(14), Inches(0.5))
+            #news_search_frame = news_search_shape.text_frame
+            #news_search_frame.word_wrap = True
+            #news_search_frame.clear()  # Clear any default paragraph
+            #p = news_search_frame.add_paragraph()
+           #p.text = "Journalists :"
+            #p.font.size = Pt(20)
+            #p.font.name = 'Gill Sans'
+            #p.font.underline = True
+            #p.font.bold = True
         
             # Add News Search text
-            news_search_text = (f"• The top journalists reporting on {client_name} and its competitors are {topj_1_name} from {topjt_1_name} with {topj_1_count} unique articles, followed by {topj_2_name} from {topjt_2_name} with {topj_2_count} unique articles, and {topj_3_name} from {topjt_3_name} with {topj_3_count} unique articles.\n"
+            #news_search_text = (f"• The top journalists reporting on {client_name} and its competitors are {topj_1_name} from {topjt_1_name} with {topj_1_count} unique articles, followed by {topj_2_name} from {topjt_2_name} with {topj_2_count} unique articles, and {topj_3_name} from {topjt_3_name} with {topj_3_count} unique articles.\n"
                            f"• Among the journalists specifically covering {client_name} are {journalist_name1} from {publication_name1} with {client_count1} articles, {journalist_name2} from {publication_name2} has authored {client_count2} articles and {journalist_name3} from {publication_name3} written {client_count3} articles.\n"
                             f"• {client_name} has received a total of {client_sov} articles in news coverage. Among these, {bureau_articles} i.e {bureau_percentage}% of the articles were filed by Bureaus, while the remaining {individual_articles} i.e {individual_percentage}% were written by individual journalists.\n"
                             f"• A total of {total_journalists} journalists have written {total_articles} unique articles covering {client_name} and its competitors, out of which, {non_zero_journalists} journalists have specifically written {articles_for_client} articles mentioning {client_name} i.e of the total journalists writing on {client_name} and its competitors only {client_journalist_percentage}% them have mentioned {client_name} in their articles.\n"
                            f"• A total of {engage_with} journalists have not mentioned {client_name} in their articles. Inorder to increase it's visibility {client_column} needs to engage with these {engage_with} journalists.\n"
                            )
-            news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
-            news_search_frame = news_search_shape.text_frame
-            news_search_frame.word_wrap = True
-            news_search_frame.clear()  # Clear any default paragraph
-            p = news_search_frame.add_paragraph()
-            p.text = (f"• The top journalists reporting on {client_name} and its competitors are {topj_1_name} from {topjt_1_name} with {topj_1_count} unique articles, followed by {topj_2_name} from {topjt_2_name} with {topj_2_count} unique articles, and {topj_3_name} from {topjt_3_name} with {topj_3_count} unique articles.\n"
+            #news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
+            #news_search_frame = news_search_shape.text_frame
+            #news_search_frame.word_wrap = True
+            #news_search_frame.clear()  # Clear any default paragraph
+            #p = news_search_frame.add_paragraph()
+            #p.text = (f"• The top journalists reporting on {client_name} and its competitors are {topj_1_name} from {topjt_1_name} with {topj_1_count} unique articles, followed by {topj_2_name} from {topjt_2_name} with {topj_2_count} unique articles, and {topj_3_name} from {topjt_3_name} with {topj_3_count} unique articles.\n"
                            f"• Among the journalists specifically covering {client_name} are {journalist_name1} from {publication_name1} with {client_count1} articles, {journalist_name2} from {publication_name2} has authored {client_count2} articles and {journalist_name3} from {publication_name3} written {client_count3} article.\n"
                             f"• {client_name} has received a total of {client_sov} articles in news coverage. Among these, {bureau_articles} i.e {bureau_percentage}% of the articles were filed by Bureaus, while the remaining {individual_articles} i.e {individual_percentage}% were written by individual journalists.\n"
                             f"• A total of {total_journalists} journalists have written {total_articles} unique articles covering {client_name} and its competitors, out of which, {non_zero_journalists} journalists have specifically written {articles_for_client} articles mentioning {client_name} i.e of the total journalists writing on {client_name} and its competitors only {client_journalist_percentage}% them have mentioned {client_name} in their articles.\n"
                            f"• A total of {engage_with} journalists have not mentioned {client_name} in their articles. Inorder to increase it's visibility {client_column} needs to engage with these {engage_with} journalists.\n"
                            )
-            p.font.size = Pt(18)
-            p.font.name = 'Gill Sans'
+            #p.font.size = Pt(18)
+            #p.font.name = 'Gill Sans'
 
-            # Add Source text
-            source_text = ("Publications :")
-            source_shape = slide.shapes.add_textbox(Inches(0.3), Inches(5.8), Inches(14), Inches(1))
-            source_frame = source_shape.text_frame
-            source_frame.word_wrap = True
-            source_frame.clear()  # Clear any default paragraph
-            p = source_frame.add_paragraph()
-            p.text = "Publications :"
-            p.font.size = Pt(20)
-            p.font.name = 'Gill Sans'
-            p.font.underline = True
-            p.font.bold = True
-        
-        
-            source_text = (
-            f"• The leading publications reporting on {client_name} and its competitors are {top_1_name}, contributing {top_1_count} unique articles, followed by {top_2_name} with {top_2_count} unique articles, and {top_3_name} with {top_3_count} unique articles.\n"
-        f"• Among these ,publications covering news on {client_name} specifically are {topc_1_name} takes the lead with {topc_1_count} articles, followed by {topc_2_name} with {topc_2_count} articles, and {topc_3_name} with {topc_3_count} articles.\n"
-       
-        )
-            source_shape = slide.shapes.add_textbox(Inches(0.3), Inches(6.1), Inches(14), Inches(1))
-            source_frame = source_shape.text_frame
-            source_frame.word_wrap = True
-            source_frame.clear()  # Clear any default paragraph
-            p = source_frame.add_paragraph()
-            p.text = (
-            f"• The leading publications reporting on {client_name} and its competitors are {top_1_name}, contributing {top_1_count} unique articles, followed by {top_2_name} with {top_2_count} unique articles, and {top_3_name} with {top_3_count} unique articles.\n"
-        f"• Among these ,publications covering news on {client_name} specifically are {topc_1_name} takes the lead with {topc_1_count} articles, followed by {topc_2_name} with {topc_2_count} articles, and {topc_3_name} with {topc_3_count} articles.\n"
-      
-        )
-            p.font.size = Pt(18)
-            p.font.name = 'Gill Sans'
-        
-        #     # Add News Search text
-        #     news_search_text = ("Publication Types :" )
-        #     news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(5.6), Inches(14), Inches(0.5))
-        #     news_search_frame = news_search_shape.text_frame
-        #     news_search_frame.word_wrap = True
-        #     news_search_frame.clear()  # Clear any default paragraph
-        #     p = news_search_frame.add_paragraph()
-        #     p.text = "Publication Type :"
-        #     p.font.size = Pt(20)
-        #     p.font.name = 'Gill Sans'
-        #     p.font.underline = True
-        #     p.font.bold = True
-        
-        #     news_search_text = (f"•The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
-        #         f"•Top Publication Types writing on {client_name} are {topp_1_name} and  {topp_2_name} they both contribute {topp_1_count} articles & {topp_2_count} articles respectively of the total news coverage on {client_name}.\n"
-        #         f"•{client_name} may find value in engaging more with {', '.join(publication_types[:-1])} and {publication_types[-1]} to expand her reach and visibility among broader audiences.\n"
-        #                    )
-        #     news_search_shape = slide.shapes.add_textbox(Inches(0.3), Inches(6.0), Inches(14), Inches(0.5))
-        #     news_search_frame = news_search_shape.text_frame
-        #     news_search_frame.word_wrap = True
-        #     news_search_frame.clear()  # Clear any default paragraph
-        #     p = news_search_frame.add_paragraph()
-        #     p.text = (f"•The leading publication types writing on {client_name} and its competitors are {topt_1_name}, contributing {topt_1_count} articles, followed by {topt_2_name} with {topt_2_count} articles, and {topt_3_name} with {topt_3_count} articles.\n"
-        #         f"•Top Publication Types writing on {client_name} are {topp_1_name} and  {topp_2_name} they both contribute {topp_1_count} articles & {topp_2_count} articles respectively of the total news coverage on {client_name}.\n"
-        # f"•{client_name} may find value in engaging more with {', '.join(publication_types[:-1])} and {publication_types[-1]} to expand her reach and visibility among broader audiences.\n"
-        #                    )
-        #     p.font.size = Pt(18)
-        #     p.font.name = 'Gill Sans'
-                
-            # Add title slide after the first slide
-            slide_layout = prs.slide_layouts[6]
-            slide = prs.slides.add_slide(slide_layout)
-        
-            # Clear existing placeholders
-            for shape in slide.placeholders:
-                if shape.has_text_frame:
-                    shape.text_frame.clear()  # Clear existing text frames
-                
-            # Set title text and format for Parameters slide
-            header_text = "Inferences and Recommendations"
-            header_shape = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(14), Inches(0.5))
-            header_frame = header_shape.text_frame
-            header_frame.text = header_text
-            for paragraph in header_frame.paragraphs:
-                for run in paragraph.runs:
-                    run.text = header_text
-                    run.font.size = Pt(30)
-                    run.font.bold = True
-                    run.font.name = 'Helvetica'
-                    run.font.color.rgb = RGBColor(240, 127, 9)
-                    # Set alignment to center
-                    paragraph.alignment = PP_ALIGN.CENTER
-                    # Set vertical alignment to be at the top
-                    paragraph.vertical_anchor = MSO_VERTICAL_ANCHOR.TOP
-        
-        
-            # # Add Time Period text
-            time_period_text = ("Monthly Coverage , Peak and Topics :")
-            time_period_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.0), Inches(14), Inches(0.5))
-            time_period_frame = time_period_shape.text_frame
-            time_period_frame.text = time_period_text
-            time_period_frame.word_wrap = True
-            time_period_frame.clear() 
-        
-            p = time_period_frame.add_paragraph()
-            p.text = "Monthly Coverage , Peak and Topics :"
-            p.font.size = Pt(20)
-            p.font.name = 'Gill Sans'
-            p.font.underline = True
-            p.font.bold = True
-        
-        
-            time_period_text = (f"• {client_name} consistently maintains a high level of coverage throughout the months, with peak in month {topdt_1_name}.\n"
-        "• These spikes indicate significant media attention and potentially notable events or announcements associated with her during those periods.\n"
-        f"• {client_name}'s received very less coverage in every month, with peak in {topdt_1_name}.\n"
-        f"• While {client_name}'s coverage is relatively lower compared to IIT Madras and Delhi, it still experiences spikes indicating periods of increased media visibility.\n"
-        f"• {client_name} witnessed its highest news coverage in {topdt_1_name}, with {topdt_1_count} articles. The news during this period mainly revolved around topics such as:\n"
-        "1.IIT Ropar Placements: Average salary, placed students increase despite Covid slowdown\n"
-        "2.Purohit allows IIT-Ropar to set up campus in Edu City.\n"
-                           )
-            time_period_shape = slide.shapes.add_textbox(Inches(0.3), Inches(1.4), Inches(14), Inches(0.5))
-            time_period_frame = time_period_shape.text_frame
-            time_period_frame.text = time_period_text
-            time_period_frame.word_wrap = True
-            time_period_frame.clear() 
-        
-            p = time_period_frame.add_paragraph()
-            p.text = (f"•{client_name} consistently maintains a high level of coverage throughout the months, with peak in month {topdt_1_name}.\n"
-        "• These spikes indicate significant media attention and potentially notable events or announcements associated with her during those periods.\n"
-        f"• {client_name}'s received very less coverage in every month, with peak in {topdt_1_name}.\n"
-        f"• While {client_name}'s coverage is relatively lower compared to IIT Madras and Delhi, it still experiences spikes indicating periods of increased media visibility.\n"
-        f"• {client_name} witnessed its highest news coverage in {topdt_1_name}, with {topdt_1_count} articles. The news during this period mainly revolved around topics such as:\n"
-        "1.IIT Ropar Placements: Average salary, placed students increase despite Covid slowdown\n"
-        "2.Purohit allows IIT-Ropar to set up campus in Edu City.\n"
-                           )
-            p.font.size = Pt(18)
-            p.font.name = 'Gill Sans'
-        
+           
         
             # Sidebar for PowerPoint download settings
             st.sidebar.write("## Download All DataFrames as a PowerPoint File")
