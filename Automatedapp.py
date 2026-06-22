@@ -52,7 +52,7 @@ def strip_client_prefix(df):
 def process_excel(file):
     # Initialize Excel writer
     output = BytesIO()
-    excel_writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    excel_writer = pd.ExcelWriter(output, engine='openpyxl')
     all_dframes = []
     sheet_results = {}
 
@@ -229,7 +229,7 @@ if uploaded_files_kalki:
 
     # Download
     output_kalki = BytesIO()
-    with pd.ExcelWriter(output_kalki, engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(output_kalki, engine='openpyxl') as writer:
         kalki_df.to_excel(writer, index=False)
 
     st.download_button(
@@ -297,7 +297,7 @@ if uploaded_files:
     
     # Prepare Excel file in memory
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
         final_df.to_excel(writer, index=False)
     
     # Convert buffer to bytes
@@ -3848,7 +3848,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 if selected_dataframe in dataframes_to_download:
                     selected_df = dataframes_to_download[selected_dataframe]
                     excel_io_selected = io.BytesIO()
-                    with pd.ExcelWriter(excel_io_selected, engine="xlsxwriter", mode="xlsx") as writer:
+                    with pd.ExcelWriter(excel_io_selected, engine="openpyxl") as writer:
                         selected_df.to_excel(writer, index=True)
                         excel_io_selected.seek(0)
                         b64_selected = base64.b64encode(excel_io_selected.read()).decode()
@@ -3862,7 +3862,7 @@ News search: All Articles: entity mentioned at least once in the article"""
                 if download_formats == "Excel":
                     # Download all DataFrames as a single Excel file
                     excel_io = io.BytesIO()
-                    with pd.ExcelWriter(excel_io, engine="xlsxwriter") as writer:
+                    with pd.ExcelWriter(excel_io, engine="openpyxl") as writer:
                         for df, comment in zip(dfs, comments):
                             df.to_excel(writer, sheet_name=comment, index=False)
                     excel_io.seek(0)
@@ -3905,6 +3905,8 @@ import matplotlib.pyplot as plt
 from pprint import pprint
 import logging
 import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="xlsxwriter")
+
 from nltk.corpus import stopwords
 # import gensim.corpora as corpora
 from io import BytesIO
