@@ -945,7 +945,7 @@ def add_image_to_slide11(slide, img_path11):
 
 
 def top_10_dfs(df_list, file_name, comments, top_11_flags):
-    writer = pd.ExcelWriter(file_name, engine='xlsxwriter')
+    writer = pd.ExcelWriter(file_name, engine='openpyxl')
     row = 2
     for dataframe, comment, top_11_flag in zip(df_list, comments, top_11_flags):
         if top_11_flag:
@@ -3471,8 +3471,8 @@ News search: All Articles: entity mentioned at least once in the article"""
                 dfs = [
     strip_client_prefix(Entity_SOV3),
     strip_client_prefix(sov_dt11),
-    strip_client_prefix(pubs_table2O),
-    strip_client_prefix(Unique_Articles2O),
+    strip_client_prefix(pubs_table1),
+    strip_client_prefix(Jour_table1),
     strip_client_prefix(PType_Entity),
     strip_client_prefix(Jour_Comp),
     strip_client_prefix(Jour_Client),
@@ -4872,7 +4872,7 @@ elif file1 and not file:
     
     # Create an in-memory buffer for the Excel workbook
     output = io.BytesIO()
-    updated_workbook = pd.ExcelWriter(output, engine='xlsxwriter')
+    updated_workbook = pd.ExcelWriter(output, engine='openpyxl')
     
     # Example dictionaries for keywords and topic mapping (adjust as needed)
     entity_keywords = {
@@ -5274,7 +5274,7 @@ elif file and file1:
         
         # Create an in-memory buffer for the Excel workbook
         output = io.BytesIO()
-        updated_workbook = pd.ExcelWriter(output, engine='xlsxwriter')
+        updated_workbook = pd.ExcelWriter(output, engine='openpyxl')
         
         # Example dictionaries for keywords and topic mapping (adjust as needed)
         entity_keywords = {
