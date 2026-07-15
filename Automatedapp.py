@@ -1,6 +1,3 @@
-import matplotlib
-matplotlib.use('Agg')
-
 import streamlit as st
 import pandas as pd
 from datetime import date
@@ -20,10 +17,6 @@ import logging
 import warnings
 from nltk.corpus import stopwords
 import nltk
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
 import os
 from openpyxl import Workbook
 from openpyxl.comments import Comment
@@ -207,95 +200,42 @@ def extract_entity_name(file_path):
     entity_name = base_name.split('_or_')[0].replace("_", " ").split('-')[0].strip()
     return entity_name
 
-#
-st.title('Online Excel File Merger & Entity Extractor (TW)')
-
+st.title('Online Excel File Merger & Entity Extractor (Kalki)')
 uploaded_files_kalki = st.file_uploader(
-    "Upload your TW Excel files",
+    "Upload your Kalki Excel files",
     accept_multiple_files=True,
     type=['xlsx'],
-    key="kalki_uploader"
+    key="kalki_uploader"          # unique key so it doesn't clash with Meltwater uploader
 )
 
 if uploaded_files_kalki:
-    dfs_list = []
-    
+    kalki_df = pd.DataFrame()
+
     for uploaded_file in uploaded_files_kalki:
         df = pd.read_excel(uploaded_file)
-        
-        # Extract Entity from filename
-        raw_name = uploaded_file.name
-        base_name = raw_name.rsplit('.', 1)[0]
-        entity_name = base_name.split('_')[0]
-        
+
+        # Entity = everything BEFORE the first underscore in the filename
+        # e.g.  "Reliance_Jan2024.xlsx"  →  "Reliance"
+        raw_name = uploaded_file.name          # "Reliance_Jan2024.xlsx"
+        base_name = raw_name.rsplit('.', 1)[0] # "Reliance_Jan2024"
+        entity_name = base_name.split('_')[0]  # "Reliance"
+
         df['Entity'] = entity_name
         cols = ['Entity'] + [col for col in df.columns if col != 'Entity']
         df = df[cols]
-        
-        dfs_list.append(df)
-    
-    kalki_df = pd.concat(dfs_list, ignore_index=True)
+        kalki_df = pd.concat([kalki_df, df], ignore_index=True)
 
-    st.write("Preview of merged data:")
-    st.dataframe(kalki_df)
+    st.write(kalki_df)
 
-    # ====================== CREATE EXCEL WITH HYPERLINKS ======================
+    # Download
     output_kalki = BytesIO()
-    
     with pd.ExcelWriter(output_kalki, engine='openpyxl') as writer:
-        kalki_df.to_excel(writer, index=False, sheet_name='Merged_Data')
-    
-    # Load the workbook to add hyperlinks
-    output_kalki.seek(0)
-    wb = load_workbook(output_kalki)
-    ws = wb.active
-
-    # Find columns that likely contain URLs
-    url_keywords = ['url', 'link', 'website', 'web', 'href']
-    hyperlink_columns = []
-
-    for col_idx, col_name in enumerate(kalki_df.columns, start=1):
-        col_name_lower = str(col_name).lower()
-        if any(keyword in col_name_lower for keyword in url_keywords):
-            hyperlink_columns.append(col_idx)
-        else:
-            # Also check if first few values look like URLs
-            sample_values = kalki_df[col_name].dropna().astype(str).head(5)
-            if sample_values.str.startswith(('http://', 'https://')).any():
-                hyperlink_columns.append(col_idx)
-
-    # Apply hyperlinks
-    for col_idx in hyperlink_columns:
-        col_letter = get_column_letter(col_idx)
-        for row in range(2, ws.max_row + 1):  # Skip header
-            cell = ws[f"{col_letter}{row}"]
-            url = str(cell.value).strip()
-            if url.startswith(('http://', 'https://')):
-                cell.hyperlink = url
-                cell.font = Font(color="0000FF", underline="single")  # Blue + underline
-
-    # Auto-adjust column widths
-    for col in ws.columns:
-        max_length = 0
-        column = col[0].column_letter
-        for cell in col:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = min(max_length + 2, 50)
-        ws.column_dimensions[column].width = adjusted_width
-
-    # Save final file
-    final_output = BytesIO()
-    wb.save(final_output)
-    final_output.seek(0)
+        kalki_df.to_excel(writer, index=False)
 
     st.download_button(
-        label="📥 Download Merged TW Excel (with Hyperlinks)",
-        data=final_output.getvalue(),
-        file_name='merged_TW_with_entity.xlsx',
+        label="Download Merged Kalki Excel",
+        data=output_kalki.getvalue(),
+        file_name='merged_KalkiData_with_entity.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 # Web app title
@@ -646,9 +586,11 @@ def multiple_dfs(df_list, sheet_name, file_name, comments, entity_info):
     add_entity_info(ws, entity_info, current_row)
     current_row += 6
     for df, comment in zip(df_list, comments):
-        if df.empty:
-            continue
-        highlight = any("total" in str(val).lower() for val in df.iloc[-1])
+        highlight = False
+        if df is Entity_SOV3 or df is sov_dt11 or df is PType_Entity:
+            highlight = True
+        if (df is pubs_table2O or df is Unique_Articles2O) and any("total" in str(val).lower() for val in df.iloc[-1]):
+            highlight = True
         add_styling_to_worksheet(ws, df, current_row, comment, highlight_last_row=highlight)
         current_row += len(df) + 4
     wb.save(file_name)
@@ -658,9 +600,8 @@ def multiple_dfs1(df_list, sheet_name, wb, comments):
     current_row = 3
 
     for df, comment in zip(df_list, comments):
-        if df.empty:
-            continue
-        highlight = any("total" in str(val).lower() for val in df.iloc[-1])
+        # Check if this DF needs the last row bolded
+        highlight = any(df is ref for ref in [pubs_table,Unique_Articles])
         add_styling_to_worksheet(ws, df, current_row, comment, highlight_last_row=highlight)
         current_row += len(df) + 4
 
@@ -1080,15 +1021,15 @@ if date_selected:
         industry = industry_input.strip()
         
 if date_selected and industry_provided :
-    st.sidebar.write("## Upload TW Online file for tables")
+    st.sidebar.write("## Upload Kalki Online file for tables")
     kalki_online_file = st.sidebar.file_uploader(
-        "Upload TW Data File (Excel or CSV)",
+        "Upload Kalki Data File (Excel or CSV)",
         type=["xlsx", "csv"],
         key="kalki_online_tables_uploader",
     )
      
     if kalki_online_file:
-        st.sidebar.write("TW File Uploaded Successfully!")
+        st.sidebar.write("Kalki File Uploaded Successfully!")
         kalki_data_raw = load_data(kalki_online_file)
      
         if kalki_data_raw is not None:
@@ -1400,16 +1341,16 @@ if date_selected and industry_provided :
             st.dataframe(k_preview_options[k_sel])
             st.sidebar.write("## Download Options")
             # ── 10. DOWNLOAD COMBINED EXCEL ───────────────────────────────
-            st.sidebar.write("## Download TW Combined Excel")
+            st.sidebar.write("## Download Kalki Combined Excel")
             kalki_file_name = st.sidebar.text_input(
-                "File name for TW Combined Excel",
-                "TW_Combined_Excel.xlsx",
+                "File name for Kalki Combined Excel",
+                "Kalki_Combined_Excel.xlsx",
             )
             k_client_name_clean = (
                     k_client_col.replace("Client-", "") if k_client_col else ""
                 )
      
-            if st.sidebar.button("Download TW Combined Excel"):
+            if st.sidebar.button("Download Kalki Combined Excel"):
      
                 k_client_name_clean = (
                     k_client_col.replace("Client-", "") if k_client_col else ""
@@ -1417,7 +1358,7 @@ if date_selected and industry_provided :
                 k_entity_info = (
                     f"Entity:{k_client_name_clean}\n"
                     f"Time Period of analysis: {start_date} to {end_date}\n"
-                    "Source: (Online) Talkwalker All publications.\n"
+                    "Source: (Online) Kalki All publications.\n"
                     "News search: All Articles: entity mentioned at least once in the article"
                 )
      
@@ -1660,7 +1601,7 @@ if date_selected and industry_provided :
                 k_href = (
                     f'<a href="data:application/vnd.openxmlformats-officedocument'
                     f'.spreadsheetml.sheet;base64,{k_b64}" '
-                    f'download="{kalki_file_name}">Download TW Combined Excel</a>'
+                    f'download="{kalki_file_name}">Download Kalki Combined Excel</a>'
                 )
                 
                 # ── Build Kalki presentation ────────────────────────────────────────
@@ -1668,14 +1609,14 @@ if date_selected and industry_provided :
 
             # ← This closing parenthesis ends the "Download Kalki Combined Excel" if-block
             # ── Build Kalki presentation ──────────────────────────────────────
-            st.sidebar.write("## Download TW DataFrames as a PowerPoint File")
+            st.sidebar.write("## Download Kalki DataFrames as a PowerPoint File")
             k_pptx_file_name = st.sidebar.text_input(
-                "Enter file name for TW PowerPoint",
-                "TW_dataframes_presentation.pptx",
+                "Enter file name for Kalki PowerPoint",
+                "kalki_dataframes_presentation.pptx",
                 key="kalki_pptx_name"
             )
 
-            if st.sidebar.button("Download TW PowerPoint", key="kalki_pptx_button"):
+            if st.sidebar.button("Download Kalki PowerPoint", key="kalki_pptx_button"):
                 def add_kalki_table_to_slide(slide, df, title, textbox_text, prs_obj):
                     rows, cols = df.shape
                     left = Inches(0.8)
@@ -1877,16 +1818,16 @@ if date_selected and industry_provided :
                 k_pptx_output.seek(0)
 
                 st.sidebar.download_button(
-                    label="⬇️ Click here to Download TW PPT",
+                    label="⬇️ Click here to Download Kalki PPT",
                     data=k_pptx_output,
                     file_name=k_pptx_file_name,
                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     key="kalki_pptx_download"
                 )
             # ── Kalki Grok Prompts ────────────────────────────────────────
-            st.sidebar.write("## Download TW Grok Prompts (.docx)")
+            st.sidebar.write("## Download Kalki Grok Prompts (.docx)")
 
-            if st.sidebar.button("Download TW Grok Prompts", key="kalki_grok_button"):
+            if st.sidebar.button("Download Kalki Grok Prompts", key="kalki_grok_button"):
                 from docx import Document
                 from docx.shared import RGBColor as DocxRGBColor, Pt as DocxPt
 
@@ -2238,13 +2179,13 @@ if date_selected and industry_provided :
                 k_grok_b64 = base64.b64encode(k_grok_buffer.read()).decode()
                 k_grok_href = (
                     f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;'
-                    f'base64,{k_grok_b64}" download="TW_Grok_Prompts_{k_c}.docx">'
-                    f'Download TW Grok Prompts (.docx)</a>'
+                    f'base64,{k_grok_b64}" download="Kalki_Grok_Prompts_{k_c}.docx">'
+                    f'Download Kalki Grok Prompts (.docx)</a>'
                 )
                 st.sidebar.markdown(k_grok_href, unsafe_allow_html=True)
                 # ── Build presentation ────────────────────────────────
 if date_selected and industry_provided :# File Upload Section
-    st.sidebar.write("## Upload an Print file for tables")
+    st.sidebar.write("## Upload an Online or Print file for tables")
     file = st.sidebar.file_uploader("Upload Data File (Excel or CSV)", type=["xlsx", "csv"])
     if file:
         st.sidebar.write("File Uploaded Successfully!")
@@ -2269,7 +2210,6 @@ if date_selected and industry_provided :# File Upload Section
                 data.drop_duplicates(subset=['Date', 'Entity', 'Hit Sentence', 'Publication Name'], keep='first', inplace=True, ignore_index=True)
                 
             finaldata = data
-            raw_data_for_pubtype = data.copy()  # save before dedup
             finaldata['Date'] = pd.to_datetime(finaldata['Date']).dt.normalize()
             competitors = [ent for ent in finaldata['Entity'].unique() if not ent.startswith("Client-")]
             if len(competitors) > 1:
@@ -2388,7 +2328,6 @@ if date_selected and industry_provided :# File Upload Section
             Jour_tableu = Jour_tableu[Jour_tableu['Journalist'] != 'Bureau News']
             Jour_tableu = pd.concat([Jour_tableu, bn_rowu], ignore_index=True)
             Jour_tableu.loc['Total'] = Jour_tableu.sum(numeric_only=True, axis=0)
-            Jour_tableu.loc['Total', 'Journalist'] = 'Total'   # ← add this line
             columns_to_convert = Jour_tableu.columns.difference(['Journalist', 'Publication Name'])
             Jour_tableu[columns_to_convert] = Jour_tableu[columns_to_convert].astype(int)
             Jour_tableu.insert(1, 'Publication Name', Jour_tableu.pop('Publication Name'))
@@ -2409,30 +2348,7 @@ if date_selected and industry_provided :# File Upload Section
             Unique_Articles.loc[bn_index+1, 'Journalist'] = 'Total'
             ordered_cols = ['Journalist', 'Publication Name', client_columndt] + [ent for ent in sov_order_no_client if ent in Unique_Articles.columns] + (['Total'] if 'Total' in Unique_Articles.columns else [])
             Unique_Articles = Unique_Articles[ordered_cols]
-            Unique_Articles['Client %'] = (
-    (Unique_Articles[client_columndt] / Unique_Articles['Total']) * 100
-).replace([float('inf'), float('-inf')], 0).fillna(0).round().astype(int)
-
-            # ── FIX: force the Total row to match SOV exactly ──────────────────
-            sov_lookup = dict(zip(Entity_SOV3['Entity'], Entity_SOV3['News Count']))
-            total_idx = Unique_Articles[Unique_Articles['Journalist'] == 'Total'].index
-            
-            for _col in Unique_Articles.columns:
-                if _col in sov_lookup and _col not in ['Total', 'Client %', 'Journalist', 'Publication Name']:
-                    Unique_Articles.loc[total_idx, _col] = int(sov_lookup[_col])
-            
-            # Total Unique Articles = sum of unique articles across all journalists (excluding the Total row itself)
-            grand_unique_total = int(
-                Unique_Articles.loc[Unique_Articles['Journalist'] != 'Total', 'Total'].sum()
-            )
-            Unique_Articles.loc[total_idx, 'Total'] = grand_unique_total
-            
-            # Recalculate Client % for the Total row using the corrected numbers
-            grand_client_val = Unique_Articles.loc[total_idx, client_columndt].values[0]
-            if grand_unique_total > 0:
-                Unique_Articles.loc[total_idx, 'Client %'] = int(round((grand_client_val / grand_unique_total) * 100))
-            else:
-                Unique_Articles.loc[total_idx, 'Client %'] = 0
+            Unique_Articles['Client %'] = ((Unique_Articles[client_columndt] / Unique_Articles['Total']) * 100).round().astype(int)
             pub_table1 = pd.crosstab(finaldata_non_exploded['Publication Name'], finaldata_non_exploded['Entity'])
             pub_table1 = pub_table1.reset_index(level=0)
             finaldatauq = finaldata_non_exploded.copy()
@@ -2457,26 +2373,11 @@ if date_selected and industry_provided :# File Upload Section
             ordered_cols = ['Publication Name', client_columndt] + [ent for ent in sov_order_no_client if ent in pubs_table.columns] + (['Total'] if 'Total' in pubs_table.columns else [])
             pubs_table = pubs_table[ordered_cols]
             pubs_table = pubs_table.sort_values('Total', ascending=False).round()
-
             pubs_table.loc['Total'] = pubs_table.sum(numeric_only=True, axis=0)
-            pubs_table.loc['Total', 'Publication Name'] = 'Total'
-            
-            # ── Override entity columns in Total row to match SOV exactly ──
-            sov_lookup_pub = dict(zip(Entity_SOV3['Entity'], Entity_SOV3['News Count']))
-            for _col in pubs_table.columns:
-                if _col in sov_lookup_pub:
-                    pubs_table.loc['Total', _col] = int(sov_lookup_pub[_col])
-            
-            # Override Total in Total row to match SOV grand total
-            pubs_table.loc['Total', 'Total'] = int(Entity_SOV3.loc[Entity_SOV3['Entity'] == 'Total', 'News Count'].values[0])
-            
-            # ── Recalculate Client % for ALL rows (Total row now uses corrected SOV values) ──
-            pubs_table['Client %'] = (
-                (pubs_table[client_columndt] / pubs_table['Total']) * 100
-            ).round().fillna(0).astype(int)
-            
+            pubs_table['Client %'] = ((pubs_table[client_columndt] / pubs_table['Total']) * 100).round().astype(int)
             numeric_columns = pubs_table.select_dtypes(include=['number']).columns
             pubs_table[numeric_columns] = pubs_table[numeric_columns].astype(int)
+            
             pubs_table1 = pubs_table.head(10)
             pubs_table2O=  pubs_table.head(20)
             pubs_table2O =pubs_table2O.rename(columns= {'Total': 'Total Unique Articles'})
@@ -2558,25 +2459,17 @@ if date_selected and industry_provided :# File Upload Section
             top10_pub_perc = int(round(( top10_pub_sum / client_sov_count) * 100))
 
             client_sov = Unique_Articles.loc[Unique_Articles['Journalist'] == 'Total',client_column].values[0]
-            bn_match = Unique_Articles.loc[Unique_Articles['Journalist'] == 'Bureau News', client_column]
-            bureau_articles = bn_match.values[0] if not bn_match.empty else 0
-            individual_articles = client_sov - bureau_articles
-            client_sov = pd.to_numeric(client_sov, errors='coerce')
-            client_sov = client_sov if pd.notna(client_sov) and client_sov != 0 else 0
-            
-            if client_sov > 0:
-                bureau_percentage = int(round((bureau_articles / client_sov) * 100, 0))
-                individual_percentage = int(round((individual_articles / client_sov) * 100, 0))
-            else:
-                bureau_percentage = 0
-                individual_percentage = 0
+            bureau_articles = Unique_Articles.loc[Unique_Articles['Journalist'] == 'Bureau News',client_column].values[0]
+            individual_articles = client_sov-bureau_articles
+            bureau_percentage = int(round((bureau_articles / client_sov) * 100,0))
+            individual_percentage = int(round((individual_articles / client_sov) * 100,0))
             filtered_df = Unique_Articles[~Unique_Articles['Journalist'].isin(['Total', 'Bureau News'])]
             total_journalists = len(filtered_df)
             total_articles = filtered_df[filtered_df['Total'].notna() & (filtered_df['Total'] > 0)]['Total'].sum()
             non_zero_journalists = filtered_df[filtered_df[client_column] > 0].shape[0]
             articles_for_client = filtered_df[filtered_df[client_column] > 0][client_column].sum()
-            #client_journalist_percentage =  int(round((non_zero_journalists/ total_journalists) * 100,0))
-            #engage_with = total_journalists-non_zero_journalists
+            client_journalist_percentage =  int(round((non_zero_journalists/ total_journalists) * 100,0))
+            engage_with = total_journalists-non_zero_journalists
         
     
             # Save them in separate DataFrames
@@ -2601,7 +2494,7 @@ if date_selected and industry_provided :# File Upload Section
             PP_table.loc['GrandTotal'] = PP_table.sum(numeric_only=True, axis=0)
             
             #Publication Name & Entity Table
-            PT_Entity = pd.crosstab(raw_data_for_pubtype['Publication Type'], raw_data_for_pubtype['Entity'])
+            PT_Entity = pd.crosstab(finaldata_non_exploded['Publication Type'], finaldata_non_exploded['Entity'])
             PT_Entity['Total'] = PT_Entity.sum(axis=1)
             PType_Entity = PT_Entity.sort_values('Total', ascending=False).round()
             PType_Entity.loc['Total'] = PType_Entity.sum(numeric_only=True, axis=0)
@@ -2694,8 +2587,8 @@ if date_selected and industry_provided :# File Upload Section
             topp_1_name = df_topp1.iloc[0]["Publication Type"]
             topp_1_count = df_topp1.iloc[0][client_column]
     
-            #topp_2_name = df_topp2.iloc[0]["Publication Type"]
-            #topp_2_count = df_topp2.iloc[0][client_column]
+            topp_2_name = df_topp2.iloc[0]["Publication Type"]
+            topp_2_count = df_topp2.iloc[0][client_column]
     
     
             # # Extract the top 3 publications and their counts
@@ -2838,28 +2731,28 @@ if date_selected and industry_provided :# File Upload Section
             client_columns = [col for col in Unique_Articles1O.columns if col.startswith("Client-")][0]
             Unique_Articles1O = Unique_Articles1O.rename(columns={'Total': 'Total Unique Articles'})
             filtered_df = Unique_Articles[~Unique_Articles['Journalist'].isin(['Bureau News', 'Total'])].sort_values(by=client_columns, ascending = False)
-            #journalist_name1 = filtered_df.iloc[0]["Journalist"]
-            #publication_name1 = filtered_df.iloc[0]["Publication Name"]
-            #client_count1 = filtered_df.iloc[0][client_column]
-            #if len(filtered_df)>=2:
-                #journalist_name2 = filtered_df.iloc[1]["Journalist"]
-                #publication_name2 = filtered_df.iloc[1]["Publication Name"]
-                #client_count2 = filtered_df.iloc[1][client_column]
-                #if len(filtered_df)>=3:
-                    #journalist_name3 = filtered_df.iloc[2]["Journalist"]
-                    #publication_name3 = filtered_df.iloc[2]["Publication Name"]
-                    #client_count3 = filtered_df.iloc[2][client_column]
-                #else:
-                    #journalist_name3 = ""
-                    #publication_name3 = ""
-                    #client_count3 = 0
-            #else:
-                #journalist_name2 = ""
-                #publication_name2 = ""
-                #client_count2 = 0
-                #journalist_name3 = ""
-                #publication_name3 = ""
-                #client_count3 = 0
+            journalist_name1 = filtered_df.iloc[0]["Journalist"]
+            publication_name1 = filtered_df.iloc[0]["Publication Name"]
+            client_count1 = filtered_df.iloc[0][client_column]
+            if len(filtered_df)>=2:
+                journalist_name2 = filtered_df.iloc[1]["Journalist"]
+                publication_name2 = filtered_df.iloc[1]["Publication Name"]
+                client_count2 = filtered_df.iloc[1][client_column]
+                if len(filtered_df)>=3:
+                    journalist_name3 = filtered_df.iloc[2]["Journalist"]
+                    publication_name3 = filtered_df.iloc[2]["Publication Name"]
+                    client_count3 = filtered_df.iloc[2][client_column]
+                else:
+                    journalist_name3 = ""
+                    publication_name3 = ""
+                    client_count3 = 0
+            else:
+                journalist_name2 = ""
+                publication_name2 = ""
+                client_count2 = 0
+                journalist_name3 = ""
+                publication_name3 = ""
+                client_count3 = 0
           
     
             # Find columns containing the word 'Client'
@@ -3202,7 +3095,7 @@ if date_selected and industry_provided :# File Upload Section
                 dfs = [
     strip_client_prefix(Entity_SOV3),
     strip_client_prefix(sov_dt11),
-    strip_client_prefix(pubs_table2O),
+    strip_client_prefix(pubs_table1),
     strip_client_prefix(Unique_Articles2O),
     strip_client_prefix(PType_Entity),
     strip_client_prefix(Jour_Comp),
