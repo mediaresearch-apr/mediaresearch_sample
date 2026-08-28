@@ -1774,7 +1774,7 @@ if date_selected and industry_provided :
                 src.text_frame.word_wrap = True
 
                 p_src = src.text_frame.add_paragraph()
-                p_src.text = "Source: (Online) Kalki All publications."
+                p_src.text = "Source: (Online) Talkwalker All publications."
                 p_src.font.size = Pt(24)
                 p_src.font.name = 'Gill Sans'
 
